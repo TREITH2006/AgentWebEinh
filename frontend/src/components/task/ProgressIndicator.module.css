@@ -1,0 +1,99 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--bw-s-2);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--bw-s-3);
+  flex-wrap: wrap;
+}
+
+.activity {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--bw-fs-sm);
+  font-weight: 550;
+  color: var(--bw-text-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timing {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  flex: none;
+}
+
+.elapsed {
+  font-family: var(--bw-font-mono);
+  font-size: var(--bw-fs-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--bw-gold);
+}
+
+.timingLabel {
+  font-size: var(--bw-fs-2xs);
+  color: var(--bw-text-dim);
+}
+
+/* ----------------------------------------------------------------- track -- */
+
+.track {
+  position: relative;
+  height: 6px;
+  border-radius: var(--bw-r-pill);
+  background: rgba(255, 255, 255, 0.055);
+  overflow: hidden;
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  width: 100%;
+  border-radius: var(--bw-r-pill);
+  background: linear-gradient(90deg, var(--bw-chocolate), var(--bw-amber) 55%, var(--bw-gold));
+  transform-origin: left;
+  transition: transform var(--bw-dur-4) var(--bw-ease-out);
+}
+
+.fill[data-tone="danger"] {
+  background: linear-gradient(90deg, rgba(239, 95, 95, 0.5), var(--bw-danger));
+}
+
+.fill[data-tone="idle"] {
+  background: var(--bw-ink-600);
+}
+
+.fill[data-tone="success"] {
+  background: linear-gradient(90deg, rgba(63, 202, 154, 0.4), #3fca9a);
+}
+
+/* Sweep only when the backend gave us no ratio. */
+.fill[data-indeterminate] {
+  width: 34%;
+  transform: translateX(-100%);
+  animation: bw-progress-sweep 1.9s var(--bw-ease-in-out) infinite;
+}
+
+/*
+ * Under reduced motion the global rule stops animations after one frame, which
+ * would leave this bar parked off-screen and read as "no progress at all".
+ * Pin it to a visible static position instead so the run still reads as active.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .fill[data-indeterminate] {
+    transform: none;
+    opacity: 0.75;
+  }
+}
+
+.note {
+  font-size: var(--bw-fs-2xs);
+  line-height: 1.5;
+  color: var(--bw-text-dim);
+}

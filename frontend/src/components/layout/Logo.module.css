@@ -1,0 +1,46 @@
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.62rem;
+  color: var(--bw-text);
+  border-radius: var(--bw-r-sm);
+}
+
+.glyph {
+  display: block;
+  flex: none;
+}
+
+.md .glyph {
+  width: 28px;
+  height: 28px;
+}
+
+.sm .glyph {
+  width: 23px;
+  height: 23px;
+}
+
+.word {
+  display: inline-flex;
+  align-items: baseline;
+  font-family: var(--bw-font-display);
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  white-space: nowrap;
+}
+
+.md .word {
+  font-size: var(--bw-fs-lg);
+}
+
+.sm .word {
+  font-size: var(--bw-fs-md);
+}
+
+.accent {
+  background: linear-gradient(112deg, var(--bw-gold), var(--bw-saffron));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}

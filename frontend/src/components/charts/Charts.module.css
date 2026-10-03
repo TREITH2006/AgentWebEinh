@@ -1,0 +1,255 @@
+/* =============================================================================
+   Chart kit styles
+   ============================================================================= */
+
+.frame {
+  display: flex;
+  flex-direction: column;
+  gap: var(--bw-s-4);
+  margin: 0;
+  padding: var(--bw-s-5);
+  border: 1px solid var(--bw-line);
+  border-radius: var(--bw-r-lg);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.022), rgba(255, 255, 255, 0) 40%),
+    var(--bw-ink-900);
+  box-shadow: var(--bw-e-2);
+}
+
+.frameHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--bw-s-4);
+}
+
+.frameTitles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  min-width: 0;
+}
+
+.frameTitle {
+  font-size: var(--bw-fs-md);
+  color: var(--bw-text);
+}
+
+.frameDescription {
+  font-size: var(--bw-fs-xs);
+  color: var(--bw-text-faint);
+  line-height: 1.5;
+}
+
+.frameMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--bw-s-2);
+  flex: none;
+}
+
+.frameFooter {
+  padding-top: var(--bw-s-3);
+  border-top: 1px solid var(--bw-line);
+  font-size: var(--bw-fs-xs);
+  color: var(--bw-text-faint);
+  line-height: 1.55;
+}
+
+/* ---------------------------------------------------------------- legend -- */
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--bw-s-4);
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: var(--bw-fs-xs);
+  color: var(--bw-text-muted);
+}
+
+.legendLine {
+  width: 14px;
+  height: 2.5px;
+  border-radius: var(--bw-r-pill);
+}
+
+.legendSwatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+/* ------------------------------------------------------------------ plot -- */
+
+.plot {
+  position: relative;
+  min-width: 0;
+}
+
+.empty {
+  display: grid;
+  place-items: center;
+  min-height: 160px;
+  padding: var(--bw-s-6);
+  border: 1px dashed var(--bw-line-2);
+  border-radius: var(--bw-r-md);
+  font-size: var(--bw-fs-sm);
+  color: var(--bw-text-faint);
+  text-align: center;
+}
+
+.chartWrap {
+  width: 100%;
+  min-width: 0;
+}
+
+.svg {
+  display: block;
+  overflow: visible;
+}
+
+.axisText {
+  fill: var(--bw-text-dim);
+  font-family: var(--bw-font-sans);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.barValue {
+  fill: var(--bw-text-muted);
+  font-family: var(--bw-font-sans);
+  font-size: 9.5px;
+  font-weight: 600;
+}
+
+.chartPlaceholder {
+  width: 100%;
+  border-radius: var(--bw-r-sm);
+  background: linear-gradient(100deg, var(--bw-ink-850), var(--bw-ink-800), var(--bw-ink-850));
+  background-size: 260% 100%;
+  animation: bw-shimmer 1.5s linear infinite;
+}
+
+/* --------------------------------------------------------------- metrics -- */
+
+.metric {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--bw-s-2);
+  padding: var(--bw-s-5);
+  border: 1px solid var(--bw-line);
+  border-radius: var(--bw-r-md);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.026), rgba(255, 255, 255, 0) 46%),
+    var(--bw-ink-900);
+  overflow: hidden;
+  transition:
+    border-color var(--bw-dur-2) var(--bw-ease-out),
+    transform var(--bw-dur-2) var(--bw-ease-out);
+}
+
+.metric::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--bw-accent-line);
+  opacity: 0.55;
+}
+
+.metric[data-tone="success"]::after {
+  background: rgba(63, 202, 154, 0.6);
+}
+
+.metric[data-tone="danger"]::after {
+  background: rgba(239, 95, 95, 0.6);
+}
+
+.metric:hover {
+  border-color: var(--bw-line-2);
+  transform: translateY(-2px);
+}
+
+.metricTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--bw-s-2);
+}
+
+.metricLabel {
+  font-size: var(--bw-fs-2xs);
+  font-weight: 650;
+  letter-spacing: var(--bw-tr-wide);
+  text-transform: uppercase;
+  color: var(--bw-text-faint);
+}
+
+.metricIcon {
+  color: var(--bw-accent);
+  opacity: 0.8;
+}
+
+.metricValue {
+  font-family: var(--bw-font-display);
+  font-size: var(--bw-fs-2xl);
+  font-weight: 650;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  color: var(--bw-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.metric[data-tone="success"] .metricValue {
+  color: #7fe3ba;
+}
+
+.metric[data-tone="danger"] .metricValue {
+  color: #ffa79f;
+}
+
+.metricHint {
+  font-size: var(--bw-fs-xs);
+  line-height: 1.5;
+  color: var(--bw-text-muted);
+}
+
+.metricFooter {
+  margin-top: var(--bw-s-1);
+}
+
+/* ------------------------------------------------------------ mini bar -- */
+
+.miniBar {
+  position: relative;
+  height: 5px;
+  border-radius: var(--bw-r-pill);
+  background: rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+
+.miniFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: var(--bw-r-pill);
+  transform-origin: left;
+  animation: bw-grow-bar-x 900ms var(--bw-ease-out) backwards;
+}
+
+@keyframes bw-grow-bar-x {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}

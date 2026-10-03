@@ -1,0 +1,114 @@
+.footer {
+  margin-top: var(--bw-s-12);
+  border-top: 1px solid var(--bw-line);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.012), rgba(0, 0, 0, 0.22));
+}
+
+.inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) repeat(2, minmax(0, 1fr));
+  gap: var(--bw-s-8);
+  padding-block: var(--bw-s-9) var(--bw-s-7);
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  gap: var(--bw-s-3);
+  align-items: flex-start;
+}
+
+.tagline {
+  max-width: 34ch;
+  font-size: var(--bw-fs-sm);
+  line-height: var(--bw-lh-relaxed);
+  color: var(--bw-text-muted);
+}
+
+.attribution {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: var(--bw-fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--bw-gold);
+}
+
+.attributionDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--bw-amber), var(--bw-chocolate));
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--bw-s-3);
+}
+
+.groupTitle {
+  font-size: var(--bw-fs-2xs);
+  font-weight: 650;
+  letter-spacing: var(--bw-tr-wider);
+  text-transform: uppercase;
+  color: var(--bw-text-faint);
+}
+
+.groupList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--bw-s-2);
+}
+
+.link {
+  font-size: var(--bw-fs-sm);
+  color: var(--bw-text-muted);
+  transition:
+    color var(--bw-dur-2) var(--bw-ease-out),
+    transform var(--bw-dur-2) var(--bw-ease-out);
+  display: inline-block;
+}
+
+.link:hover {
+  color: var(--bw-gold);
+  transform: translateX(2px);
+}
+
+.legal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--bw-s-4);
+  justify-content: space-between;
+  padding-block: var(--bw-s-5);
+  border-top: 1px solid var(--bw-line);
+  font-size: var(--bw-fs-xs);
+  color: var(--bw-text-dim);
+  line-height: 1.55;
+}
+
+.legal p:last-child {
+  max-width: 52ch;
+}
+
+@media (max-width: 760px) {
+  .inner {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--bw-s-7);
+  }
+
+  .brand {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 460px) {
+  .inner {
+    grid-template-columns: 1fr;
+  }
+
+  .footer {
+    margin-top: var(--bw-s-9);
+  }
+}

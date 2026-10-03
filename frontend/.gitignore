@@ -1,0 +1,21 @@
+node_modules/
+.next/
+out/
+build/
+
+# Local env files. `.env.example` is committed; real values never are.
+.env
+.env.local
+.env*.local
+
+# Logs and editor noise
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+next-env.d.ts
+*.tsbuildinfo

@@ -1,0 +1,6 @@
+.idLine {
+  margin-top: var(--bw-s-2);
+  font-size: var(--bw-fs-xs);
+  color: var(--bw-text-dim);
+  overflow-wrap: anywhere;
+}

@@ -1,0 +1,113 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--bw-s-5);
+  padding: var(--bw-s-6);
+  animation: bw-panel-in var(--bw-dur-4) var(--bw-ease-out) both;
+}
+
+/* ------------------------------------------------------------------ head -- */
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--bw-s-4);
+  flex-wrap: wrap;
+}
+
+.headMain {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.title {
+  font-size: var(--bw-fs-xl);
+  letter-spacing: -0.02em;
+}
+
+.sub {
+  font-size: var(--bw-fs-xs);
+  line-height: 1.55;
+  color: var(--bw-text-faint);
+}
+
+.headControls {
+  display: flex;
+  align-items: center;
+  gap: var(--bw-s-3);
+  flex-wrap: wrap;
+}
+
+/* ------------------------------------------------------------------ note -- */
+
+.note {
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--bw-line-2);
+  border-radius: var(--bw-r-xs);
+  background: rgba(255, 255, 255, 0.022);
+  font-size: var(--bw-fs-2xs);
+  line-height: 1.5;
+  color: var(--bw-text-faint);
+}
+
+.note[data-tone="ok"] {
+  border-color: rgba(63, 202, 154, 0.3);
+  background: var(--bw-ok-soft);
+  color: #7fe3ba;
+}
+
+.note[data-tone="warn"] {
+  border-color: rgba(227, 184, 102, 0.34);
+  background: var(--bw-warn-soft);
+  color: #f0d9a8;
+}
+
+/* ------------------------------------------------------------------ grid -- */
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+  gap: var(--bw-s-5);
+  padding-top: var(--bw-s-5);
+  border-top: 1px dashed var(--bw-line);
+}
+
+.viewportCol,
+.feedCol {
+  min-width: 0;
+}
+
+.feedCol {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding-left: var(--bw-s-5);
+  border-left: 1px solid var(--bw-line);
+}
+
+@media (max-width: 1080px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .feedCol {
+    padding-left: 0;
+    padding-top: var(--bw-s-5);
+    border-left: none;
+    border-top: 1px solid var(--bw-line);
+  }
+}
+
+@media (max-width: 640px) {
+  .root {
+    padding: var(--bw-s-5);
+  }
+
+  .title {
+    font-size: var(--bw-fs-lg);
+  }
+}

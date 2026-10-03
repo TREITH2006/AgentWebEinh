@@ -1,0 +1,53 @@
+target-version = "py313"
+line-length = 100
+src = ["app", "tests"]
+
+[lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # import sorting
+    "UP",   # pyupgrade
+    "B",    # bugbear
+    "C4",   # comprehensions
+    "SIM",  # simplify
+    "BLE",  # blind except
+    "S",    # bandit
+    "N",    # pep8-naming
+    "ANN",  # annotations
+    "ASYNC",
+    "RUF",
+]
+ignore = [
+    # ``assert`` is this codebase's type-narrowing tool after an invariant call
+    # (a row that was just read, a factory that just set a field). It appears at
+    # ~25 sites and is not a user-input assertion.
+    "S101",
+    # Long lines are allowed in log format strings and docstring URLs.
+    "E501",
+    # Adapter and manager APIs take an explicit ``timeout``/``-timeout`` parameter
+    # by design so callers can bound a single step; ASYNC109 wants them hardcoded.
+    "ASYNC109",
+    # ``class TaskStatus(str, Enum)`` -> StrEnum changes ``str()``/``format()``
+    # behaviour across every consumer. Not a cleanup: it needs its own review.
+    "UP042",
+    # ``Any`` is used deliberately at the dynamic seams: SQLAlchemy connection
+    # records, persisted event ``data`` blobs, and settings overrides.
+    "ANN401",
+    # Exceptions that model a condition rather than a defect keep domain names:
+    # ``TaskCancelled`` (cooperative control flow) and ``BrowserUnavailable``.
+    "N818",
+]
+
+[lint.per-file-ignores]
+# Tests deliberately build odd payloads and reach into internals.
+"tests/*" = ["S105", "S106", "SLF001", "B011"]
+# The database module owns a small synchronous CLI entry point.
+"app/database/database.py" = ["ASYNC230", "S603"]
+
+[lint.isort]
+known-first-party = ["app"]
+
+[format]
+quote-style = "double"

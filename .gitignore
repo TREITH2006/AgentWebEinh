@@ -1,0 +1,44 @@
+# --------------------------------------------------------------- Python ----
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# ---------------------------------------------------------------- Node -----
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+npm-debug.log*
+yarn-error.log*
+
+# ------------------------------------------------- Secrets and local config --
+# .env.example files are committed; the real files never are.
+.env
+.env.*
+!.env.example
+
+# ------------------------------------------------------- Runtime data/artifacts --
+# The project-local database and everything the browser captures.
+data/
+backend/data/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite3
+screenshots/
+
+# ------------------------------------------------------------- Editors/OS --
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# ----------------------------------------------------------------- Logs ----
+*.log

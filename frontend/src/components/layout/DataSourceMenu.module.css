@@ -1,0 +1,160 @@
+.root {
+  position: relative;
+}
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.42rem 0.7rem;
+  border: 1px solid var(--bw-line-2);
+  border-radius: var(--bw-r-pill);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: var(--bw-fs-xs);
+  font-weight: 600;
+  color: var(--bw-text-muted);
+  transition:
+    border-color var(--bw-dur-2) var(--bw-ease-out),
+    color var(--bw-dur-2) var(--bw-ease-out),
+    background var(--bw-dur-2) var(--bw-ease-out);
+}
+
+.trigger:hover {
+  border-color: var(--bw-accent-line-strong);
+  color: var(--bw-text);
+  background: rgba(177, 173, 255, 0.06);
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.dot[data-status="live"] {
+  background: var(--bw-ok);
+  box-shadow: 0 0 0 3px rgba(63, 202, 154, 0.16);
+}
+
+.dot[data-status="demo"] {
+  background: var(--bw-amber);
+  box-shadow: 0 0 0 3px rgba(139, 132, 255, 0.16);
+}
+
+.dot[data-status="checking"] {
+  background: var(--bw-text-dim);
+  animation: bw-blink 1.2s var(--bw-ease-in-out) infinite;
+}
+
+.triggerLabel {
+  min-width: 52px;
+  text-align: left;
+}
+
+/* ----------------------------------------------------------------- menu -- */
+
+.menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: var(--bw-z-popover);
+  width: 268px;
+  padding: var(--bw-s-4);
+  border: 1px solid var(--bw-line-2);
+  border-radius: var(--bw-r-md);
+  background: rgba(17, 20, 38, 0.98);
+  backdrop-filter: blur(18px);
+  box-shadow: var(--bw-e-4);
+  animation: bw-scale-in var(--bw-dur-2) var(--bw-ease-out) both;
+}
+
+.menuHead {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-bottom: var(--bw-s-3);
+  font-size: var(--bw-fs-xs);
+  font-weight: 650;
+  color: var(--bw-text);
+}
+
+.menuSub {
+  font-size: var(--bw-fs-2xs);
+  font-weight: 500;
+  color: var(--bw-text-faint);
+  line-height: 1.45;
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--bw-s-3);
+  width: 100%;
+  padding: 0.55rem 0.6rem;
+  border-radius: var(--bw-r-sm);
+  text-align: left;
+  color: var(--bw-text-muted);
+  transition:
+    background var(--bw-dur-2) var(--bw-ease-out),
+    color var(--bw-dur-2) var(--bw-ease-out);
+}
+
+.option:hover {
+  background: rgba(177, 173, 255, 0.07);
+  color: var(--bw-text);
+}
+
+.option[data-selected] {
+  background: var(--bw-accent-soft-2);
+  color: var(--bw-gold);
+}
+
+.optionMain {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.optionLabel {
+  font-size: var(--bw-fs-sm);
+  font-weight: 600;
+}
+
+.optionDetail {
+  font-size: var(--bw-fs-2xs);
+  color: var(--bw-text-dim);
+  line-height: 1.4;
+}
+
+.menuFoot {
+  margin-top: var(--bw-s-3);
+  padding-top: var(--bw-s-3);
+  border-top: 1px solid var(--bw-line);
+}
+
+.reason {
+  margin-top: var(--bw-s-2);
+  font-size: var(--bw-fs-2xs);
+  line-height: 1.5;
+  color: var(--bw-text-dim);
+}
+
+@media (max-width: 520px) {
+  .menu {
+    right: -4px;
+    width: min(268px, calc(100vw - 2 * var(--bw-s-4)));
+  }
+
+  .triggerLabel {
+    display: none;
+  }
+}

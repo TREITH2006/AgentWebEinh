@@ -1,0 +1,149 @@
+/* =============================================================================
+   AgentWebEinh — Design Tokens
+   Single source of truth for colour, type, space, motion and elevation.
+
+   Palette follows a 30-60-10 split:
+     60% dominant  — deep ink-navy surfaces (--bw-ink-*)
+     30% secondary — slate-navy panels, cool neutral text and hairlines
+     10% accent    — indigo → periwinkle brand ramp (the five brand slots)
+   Status hues stay distinct and legible against the navy ground.
+   ============================================================================= */
+
+:root {
+  /* ---------------------------------------------------------------- brand --
+     Indigo → periwinkle ramp. Slot order (deep → light) is unchanged. */
+  --bw-bronze: #3d34d4;
+  --bw-chocolate: #5149ef;
+  --bw-saffron: #7a71ff;
+  --bw-amber: #8b84ff;
+  --bw-gold: #b1adff;
+
+  /* -------------------------------------------------------------- surface -- */
+  --bw-ink-1000: #07080f;
+  --bw-ink-950: #0b0d18;
+  --bw-ink-900: #111426;
+  --bw-ink-850: #161a2e;
+  --bw-ink-800: #1c2138;
+  --bw-ink-750: #232943;
+  --bw-ink-700: #2c3350;
+  --bw-ink-600: #3b4363;
+
+  /* ----------------------------------------------------------------- text -- */
+  --bw-text: #eef1fb;
+  --bw-text-soft: #ccd3ea;
+  --bw-text-muted: #9aa3c4;
+  --bw-text-faint: #737d9f;
+  --bw-text-dim: #565f80;
+
+  /* --------------------------------------------------------------- accent -- */
+  --bw-accent: var(--bw-saffron);
+  --bw-accent-strong: var(--bw-amber);
+  --bw-accent-deep: var(--bw-bronze);
+
+  --bw-accent-soft: rgba(122, 113, 255, 0.16);
+  --bw-accent-soft-2: rgba(139, 132, 255, 0.2);
+  --bw-accent-line: rgba(122, 113, 255, 0.32);
+  --bw-accent-line-strong: rgba(177, 173, 255, 0.48);
+  --bw-accent-glow: rgba(122, 113, 255, 0.26);
+
+  /* ---------------------------------------------------------------- lines -- */
+  --bw-line: rgba(177, 173, 255, 0.1);
+  --bw-line-2: rgba(177, 173, 255, 0.16);
+  --bw-line-3: rgba(177, 173, 255, 0.26);
+  --bw-line-neutral: rgba(255, 255, 255, 0.07);
+
+  /* ------------------------------------------------------------- statuses -- */
+  --bw-ok: #3fca9a;
+  --bw-ok-soft: rgba(63, 202, 154, 0.15);
+  --bw-warn: #e3b866;
+  --bw-warn-soft: rgba(227, 184, 102, 0.16);
+  --bw-danger: #ef5f5f;
+  --bw-danger-soft: rgba(239, 95, 95, 0.15);
+  --bw-info: var(--bw-chocolate);
+  --bw-info-soft: rgba(81, 73, 239, 0.2);
+  --bw-idle: #6b7594;
+
+  /* ----------------------------------------------------------- typography -- */
+  --bw-font-display: var(--font-display), "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --bw-font-sans: var(--font-sans), "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --bw-font-mono: ui-monospace, "Cascadia Mono", "JetBrains Mono", "SF Mono", Consolas, monospace;
+
+  --bw-fs-2xs: 0.6875rem; /* 11 */
+  --bw-fs-xs: 0.75rem; /* 12 */
+  --bw-fs-sm: 0.8125rem; /* 13 */
+  --bw-fs-md: 0.9375rem; /* 15 */
+  --bw-fs-lg: 1.0625rem; /* 17 */
+  --bw-fs-xl: 1.375rem; /* 22 */
+  --bw-fs-2xl: 1.875rem; /* 30 */
+  --bw-fs-3xl: 2.5rem; /* 40 */
+  --bw-fs-4xl: 3.25rem; /* 52 */
+
+  --bw-lh-tight: 1.12;
+  --bw-lh-snug: 1.32;
+  --bw-lh-base: 1.6;
+  --bw-lh-relaxed: 1.75;
+
+  --bw-tr-wide: 0.16em;
+  --bw-tr-wider: 0.24em;
+
+  /* ---------------------------------------------------------------- space -- */
+  --bw-s-1: 4px;
+  --bw-s-2: 8px;
+  --bw-s-3: 12px;
+  --bw-s-4: 16px;
+  --bw-s-5: 20px;
+  --bw-s-6: 24px;
+  --bw-s-7: 32px;
+  --bw-s-8: 40px;
+  --bw-s-9: 48px;
+  --bw-s-10: 64px;
+  --bw-s-11: 80px;
+  --bw-s-12: 104px;
+
+  /* --------------------------------------------------------------- radius -- */
+  --bw-r-xs: 6px;
+  --bw-r-sm: 9px;
+  --bw-r-md: 13px;
+  --bw-r-lg: 18px;
+  --bw-r-xl: 24px;
+  --bw-r-2xl: 32px;
+  --bw-r-pill: 999px;
+
+  /* ----------------------------------------------------------- elevation -- */
+  --bw-e-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --bw-e-2: 0 4px 14px -4px rgba(0, 0, 0, 0.5);
+  --bw-e-3: 0 14px 38px -14px rgba(0, 0, 0, 0.65);
+  --bw-e-4: 0 30px 70px -28px rgba(0, 0, 0, 0.8);
+  --bw-e-accent: 0 12px 34px -14px rgba(122, 113, 255, 0.45);
+
+  /* --------------------------------------------------------------- motion -- */
+  --bw-dur-1: 120ms;
+  --bw-dur-2: 200ms;
+  --bw-dur-3: 320ms;
+  --bw-dur-4: 520ms;
+  --bw-dur-5: 800ms;
+  --bw-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --bw-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --bw-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* --------------------------------------------------------------- layout -- */
+  --bw-shell: 1280px;
+  --bw-shell-wide: 1440px;
+  --bw-shell-text: 68ch;
+  --bw-nav-h: 68px;
+
+  --bw-z-base: 0;
+  --bw-z-sticky: 40;
+  --bw-z-nav: 60;
+  --bw-z-popover: 80;
+  --bw-z-toast: 100;
+}
+
+/* Brand ramp used by the Animista-derived colour animation (see animations.css). */
+:root {
+  --bw-cycle-1: var(--bw-bronze);
+  --bw-cycle-2: var(--bw-chocolate);
+  --bw-cycle-3: var(--bw-saffron);
+  --bw-cycle-4: var(--bw-amber);
+  --bw-cycle-5: var(--bw-gold);
+}

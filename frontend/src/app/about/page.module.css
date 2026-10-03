@@ -1,0 +1,208 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--bw-s-4);
+  padding-bottom: var(--bw-s-9);
+}
+
+.sectionTitle {
+  font-size: var(--bw-fs-2xl);
+  letter-spacing: -0.028em;
+  color: var(--bw-text);
+}
+
+/* ----------------------------------------------------------------- cards -- */
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--bw-s-4);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--bw-s-2);
+  height: 100%;
+  padding: var(--bw-s-5);
+}
+
+.cardIcon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--bw-accent-line);
+  border-radius: var(--bw-r-sm);
+  background: var(--bw-accent-soft);
+  color: var(--bw-accent-strong);
+}
+
+.cardTitle {
+  font-size: var(--bw-fs-md);
+  font-weight: 650;
+  color: var(--bw-text-soft);
+}
+
+.cardBody {
+  font-size: var(--bw-fs-xs);
+  line-height: 1.65;
+  color: var(--bw-text-faint);
+}
+
+/* -------------------------------------------------------------- pipeline -- */
+
+.pipeline {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--bw-s-3);
+  list-style: none;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  height: 100%;
+  padding: var(--bw-s-4);
+  border: 1px solid var(--bw-line);
+  border-radius: var(--bw-r-md);
+  background: rgba(255, 255, 255, 0.016);
+  transition: border-color var(--bw-dur-2) var(--bw-ease-out);
+}
+
+.step:hover {
+  border-color: var(--bw-accent-line);
+}
+
+.stepLabel {
+  font-size: var(--bw-fs-2xs);
+  font-weight: 700;
+  letter-spacing: var(--bw-tr-wide);
+  text-transform: uppercase;
+  color: var(--bw-bronze);
+}
+
+.stepBody {
+  font-size: var(--bw-fs-xs);
+  line-height: 1.6;
+  color: var(--bw-text-faint);
+}
+
+/* ------------------------------------------------------------ principles -- */
+
+.principles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--bw-s-4);
+  list-style: none;
+}
+
+.principle {
+  display: flex;
+  gap: var(--bw-s-3);
+  height: 100%;
+  padding: var(--bw-s-4);
+  border-left: 2px solid var(--bw-accent-line);
+  border-radius: 0 var(--bw-r-sm) var(--bw-r-sm) 0;
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.principleIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--bw-line-2);
+  border-radius: var(--bw-r-xs);
+  color: var(--bw-amber);
+}
+
+.principleTitle {
+  font-size: var(--bw-fs-sm);
+  font-weight: 650;
+  color: var(--bw-text-soft);
+}
+
+.principleBody {
+  margin-top: 0.2rem;
+  font-size: var(--bw-fs-xs);
+  line-height: 1.6;
+  color: var(--bw-text-faint);
+}
+
+/* ------------------------------------------------------------------ note -- */
+
+.notePanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--bw-s-3);
+  padding: var(--bw-s-6);
+  margin-bottom: var(--bw-s-11);
+}
+
+.noteBody {
+  max-width: 78ch;
+  font-size: var(--bw-fs-sm);
+  line-height: var(--bw-lh-relaxed);
+  color: var(--bw-text-muted);
+}
+
+.noteBody strong {
+  color: var(--bw-gold);
+  font-weight: 650;
+}
+
+.noteActions {
+  display: flex;
+  align-items: center;
+  gap: var(--bw-s-4);
+  flex-wrap: wrap;
+  padding-top: var(--bw-s-2);
+}
+
+.noteCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.7rem 1.15rem;
+  border: 1px solid var(--bw-accent-line-strong);
+  border-radius: var(--bw-r-sm);
+  background: var(--bw-accent-soft);
+  font-size: var(--bw-fs-sm);
+  font-weight: 650;
+  color: var(--bw-gold);
+  transition:
+    border-color var(--bw-dur-2) var(--bw-ease-out),
+    background var(--bw-dur-2) var(--bw-ease-out),
+    transform var(--bw-dur-2) var(--bw-ease-out);
+}
+
+.noteCta:hover {
+  background: rgba(122, 113, 255, 0.18);
+  transform: translateY(-1px);
+}
+
+.noteLink {
+  font-size: var(--bw-fs-xs);
+  font-weight: 650;
+  color: var(--bw-chocolate);
+  transition: color var(--bw-dur-2) var(--bw-ease-out);
+}
+
+.noteLink:hover {
+  color: var(--bw-amber);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 760px) {
+  .sectionTitle {
+    font-size: var(--bw-fs-xl);
+  }
+
+  .notePanel {
+    padding: var(--bw-s-5);
+  }
+}

@@ -1,0 +1,56 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  border: 1px solid var(--bw-line-2);
+  border-radius: var(--bw-r-xs);
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  transition:
+    border-color var(--bw-dur-2) var(--bw-ease-out),
+    background var(--bw-dur-2) var(--bw-ease-out),
+    color var(--bw-dur-2) var(--bw-ease-out),
+    transform var(--bw-dur-1) var(--bw-ease-out);
+}
+
+.sm {
+  padding: 0.4rem 0.62rem;
+  font-size: var(--bw-fs-2xs);
+}
+
+.md {
+  padding: 0.5rem 0.78rem;
+  font-size: var(--bw-fs-xs);
+}
+
+.quiet {
+  background: rgba(255, 255, 255, 0.028);
+  color: var(--bw-text-muted);
+}
+
+.solid {
+  background: var(--bw-accent-soft-2);
+  border-color: var(--bw-accent-line);
+  color: var(--bw-gold);
+}
+
+.button:hover {
+  border-color: var(--bw-accent-line-strong);
+  background: var(--bw-accent-soft);
+  color: var(--bw-gold);
+}
+
+.button:active {
+  transform: scale(0.97);
+}
+
+.copied {
+  border-color: rgba(63, 202, 154, 0.5);
+  background: var(--bw-ok-soft);
+  color: #6fe0b4;
+}
+
+.icon {
+  display: inline-flex;
+}

@@ -1,0 +1,223 @@
+/* =============================================================================
+   AnimatedButton — scoped styles
+   Derived from the Uiverse.io animated text button by KINGFRESS.
+   Every selector is local to this module; nothing escapes it.
+   ============================================================================= */
+
+.button {
+  --btn-pad-y: 0.82rem;
+  --btn-pad-x: 1.6rem;
+  --btn-font: var(--bw-fs-md);
+  --btn-radius: var(--bw-r-sm);
+  --btn-bg: linear-gradient(135deg, var(--bw-saffron), var(--bw-chocolate));
+  --btn-fg: #0a0b18;
+  --btn-slide: linear-gradient(115deg, var(--bw-gold), var(--bw-amber) 45%, var(--bw-chocolate));
+
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(var(--btn-pad-y) * 2 + 1.25em);
+  padding: var(--btn-pad-y) var(--btn-pad-x);
+  border: 1px solid transparent;
+  border-radius: var(--btn-radius);
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  font-family: var(--bw-font-display);
+  font-size: var(--btn-font);
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -0.005em;
+  text-align: center;
+  cursor: pointer;
+  isolation: isolate;
+  overflow: hidden;
+  box-shadow: var(--bw-e-2);
+  transition:
+    transform var(--bw-dur-2) var(--bw-ease-out),
+    box-shadow var(--bw-dur-2) var(--bw-ease-out),
+    filter var(--bw-dur-2) var(--bw-ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--bw-e-3), 0 14px 30px -18px rgba(122, 113, 255, 0.75);
+}
+
+.button:active:not(:disabled) {
+  transform: translateY(0) scale(0.985);
+  box-shadow: var(--bw-e-1);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--bw-gold);
+  outline-offset: 3px;
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  filter: saturate(0.35) brightness(0.72);
+  box-shadow: none;
+}
+
+/* ------------------------------------------------------------- variants -- */
+
+.secondary {
+  --btn-bg: rgba(177, 173, 255, 0.08);
+  --btn-fg: var(--bw-gold);
+  --btn-slide: linear-gradient(115deg, rgba(122, 113, 255, 0.24), rgba(139, 132, 255, 0.34));
+  border-color: var(--bw-accent-line);
+  box-shadow: none;
+}
+
+.secondary:hover:not(:disabled) {
+  box-shadow: 0 10px 26px -18px rgba(122, 113, 255, 0.6);
+}
+
+.danger {
+  --btn-bg: rgba(239, 95, 95, 0.14);
+  --btn-fg: #ffa08f;
+  --btn-slide: linear-gradient(115deg, rgba(239, 95, 95, 0.4), rgba(61, 52, 212, 0.5));
+  border-color: rgba(239, 95, 95, 0.4);
+  box-shadow: none;
+}
+
+.quiet {
+  --btn-bg: transparent;
+  --btn-fg: var(--bw-text-soft);
+  --btn-slide: linear-gradient(115deg, rgba(177, 173, 255, 0.14), rgba(122, 113, 255, 0.18));
+  border-color: var(--bw-line-2);
+  box-shadow: none;
+}
+
+.quiet:hover:not(:disabled) {
+  --btn-fg: var(--bw-text);
+  border-color: var(--bw-line-3);
+  box-shadow: none;
+}
+
+/* ---------------------------------------------------------------- sizes -- */
+
+.sm {
+  --btn-pad-y: 0.55rem;
+  --btn-pad-x: 1.05rem;
+  --btn-font: var(--bw-fs-sm);
+  --btn-radius: var(--bw-r-xs);
+}
+
+.lg {
+  --btn-pad-y: 1.05rem;
+  --btn-pad-x: 2.2rem;
+  --btn-font: var(--bw-fs-lg);
+  --btn-radius: var(--bw-r-md);
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+/* --------------------------------------------------------------- layers -- */
+
+.backdrop {
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  background: var(--btn-slide);
+  opacity: 0;
+  transition: opacity var(--bw-dur-3) var(--bw-ease-out);
+}
+
+.button:hover:not(:disabled) .backdrop,
+.button:focus-visible:not(:disabled) .backdrop {
+  opacity: 1;
+}
+
+.layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: inherit;
+  transition: transform var(--bw-dur-4) var(--bw-ease-out);
+}
+
+.text {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The lower layer starts below the button and rises on hover/focus. */
+.layerLower {
+  transform: translateY(105%);
+}
+
+.button:hover:not(:disabled) .layer:first-of-type,
+.button:focus-visible:not(:disabled) .layer:first-of-type {
+  transform: translateY(-105%);
+}
+
+.button:hover:not(:disabled) .layerLower,
+.button:focus-visible:not(:disabled) .layerLower {
+  transform: translateY(0);
+}
+
+.char {
+  display: inline-block;
+  white-space: pre;
+  transition: transform var(--bw-dur-4) var(--bw-ease-out);
+  transition-delay: calc(var(--i) * 22ms);
+}
+
+.layerLower .char {
+  transition-delay: calc(var(--i) * 22ms + 70ms);
+}
+
+/* Without the slide the lower layer must never be visible or selectable. */
+.layerLower {
+  pointer-events: none;
+}
+
+.icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+}
+
+/* -------------------------------------------------------------- loading -- */
+
+.loadingRow {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.spinner {
+  width: 0.95em;
+  height: 0.95em;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  animation: bw-spin 720ms linear infinite;
+}
+
+/* Compact text actions elsewhere in the product share this look without the
+   two-layer slide, which is reserved for the primary call to action. */
+@media (prefers-reduced-motion: reduce) {
+  .layer,
+  .char {
+    transition-duration: 1ms;
+    transition-delay: 0ms;
+  }
+
+  .button:hover:not(:disabled) .layer:first-of-type {
+    transform: translateY(-105%);
+  }
+}

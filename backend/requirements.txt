@@ -1,0 +1,40 @@
+# =============================================================================
+# AgentWebEinh backend — Python dependencies
+# Install into the project-local virtual environment only:
+#     backend\.venv\Scripts\python.exe -m pip install -r backend\requirements.txt
+# The repository root .venv belongs to a different project and must never be used.
+# =============================================================================
+
+# ------------------------------------------------------------------ web stack --
+fastapi>=0.115,<1.0
+uvicorn[standard]>=0.34,<1.0        # `standard` bundles the `websockets` WS server
+pydantic>=2.9,<3.0
+pydantic-settings>=2.6,<3.0
+
+# ------------------------------------------------------------------ database --
+SQLAlchemy[asyncio]>=2.0.36,<3.0    # async ORM / core
+aiosqlite>=0.20                     # async SQLite driver
+greenlet>=3.1                       # required by SQLAlchemy's asyncio bridge
+
+# ------------------------------------------------------- outbound HTTP (async) --
+httpx>=0.28,<1.0                     # Ollama + OpenClaw status calls
+
+# --------------------------------------------------------------- resilience ---
+tenacity>=9.0,<10.0
+
+# ------------------------------------------------------------ observability ---
+structlog>=24.4
+
+# ------------------------------------------------------------------ browser ---
+# Playwright drives Chromium directly (browser lifecycle, navigation, DOM
+# inspection, screenshots, JPEG frame capture). Chromium itself is already
+# installed in the user profile and is NOT downloaded by this project.
+playwright>=1.49,<2.0
+
+# =============================================================================
+# Development / test only
+# =============================================================================
+pytest>=8.3,<9.0
+pytest-asyncio>=0.24,<2.0
+anyio>=4.6,<5.0
+ruff>=0.8,<1.0

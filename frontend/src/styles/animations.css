@@ -1,0 +1,389 @@
+/* =============================================================================
+   AgentWebEinh — Motion library
+   Every keyframe in the product lives here. Colour cycles are restricted to the
+   approved five-colour brand ramp; the Animista-inspired cycle is remapped onto
+   that ramp instead of its original rainbow.
+   ============================================================================= */
+
+/* --------------------------------------------------- brand colour cycling -- */
+
+@keyframes bw-brand-cycle {
+  0% {
+    background-color: var(--bw-cycle-1);
+  }
+  25% {
+    background-color: var(--bw-cycle-2);
+  }
+  50% {
+    background-color: var(--bw-cycle-3);
+  }
+  75% {
+    background-color: var(--bw-cycle-4);
+  }
+  100% {
+    background-color: var(--bw-cycle-5);
+  }
+}
+
+@keyframes bw-brand-cycle-fg {
+  0% {
+    color: var(--bw-cycle-1);
+  }
+  25% {
+    color: var(--bw-cycle-2);
+  }
+  50% {
+    color: var(--bw-cycle-3);
+  }
+  75% {
+    color: var(--bw-cycle-4);
+  }
+  100% {
+    color: var(--bw-cycle-5);
+  }
+}
+
+@keyframes bw-brand-cycle-border {
+  0% {
+    border-color: var(--bw-cycle-1);
+  }
+  25% {
+    border-color: var(--bw-cycle-2);
+  }
+  50% {
+    border-color: var(--bw-cycle-3);
+  }
+  75% {
+    border-color: var(--bw-cycle-4);
+  }
+  100% {
+    border-color: var(--bw-cycle-5);
+  }
+}
+
+@keyframes bw-brand-cycle-shadow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(61, 52, 212, 0.5);
+  }
+  25% {
+    box-shadow: 0 0 18px -2px rgba(81, 73, 239, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 22px -2px rgba(122, 113, 255, 0.5);
+  }
+  75% {
+    box-shadow: 0 0 18px -2px rgba(139, 132, 255, 0.45);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(177, 173, 255, 0);
+  }
+}
+
+/* Applied only to a single 2px accent rule so the effect stays purposeful. */
+.bw-cycle-bar {
+  animation: bw-brand-cycle 9s var(--bw-ease-in-out) infinite;
+}
+
+.bw-cycle-text {
+  animation: bw-brand-cycle-fg 9s var(--bw-ease-in-out) infinite;
+}
+
+/* ------------------------------------------------------------- entrances -- */
+
+@keyframes bw-fade-up {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes bw-fade-down {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -14px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes bw-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes bw-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes bw-slide-in-right {
+  from {
+    opacity: 0;
+    transform: translate3d(16px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes bw-row-in {
+  from {
+    opacity: 0;
+    transform: translate3d(-10px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* Scroll-reveal primitive: components set --bw-reveal-delay for stagger. */
+.bw-reveal {
+  opacity: 0;
+  transform: translate3d(0, 22px, 0);
+  transition:
+    opacity var(--bw-dur-5) var(--bw-ease-out),
+    transform var(--bw-dur-5) var(--bw-ease-out);
+  transition-delay: var(--bw-reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+
+.bw-reveal[data-visible="true"] {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+  will-change: auto;
+}
+
+.bw-reveal-scale {
+  opacity: 0;
+  transform: scale(0.965) translate3d(0, 14px, 0);
+  transition:
+    opacity var(--bw-dur-5) var(--bw-ease-out),
+    transform var(--bw-dur-5) var(--bw-ease-out);
+  transition-delay: var(--bw-reveal-delay, 0ms);
+}
+
+.bw-reveal-scale[data-visible="true"] {
+  opacity: 1;
+  transform: scale(1) translate3d(0, 0, 0);
+}
+
+/* ------------------------------------------------------------ ambient FX -- */
+
+/* Slow diagonal drift for the About hero mesh. Runs once per cycle and is
+   disabled under reduced motion by the global media query. */
+@keyframes bw-mesh-drift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: translate3d(2.5%, -3%, 0) scale(1.08);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.55;
+  }
+}
+
+@keyframes bw-sheen {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(220%);
+  }
+}
+
+/* Indeterminate progress. Width cycles so the motion never looks stalled. */
+@keyframes bw-indeterminate {
+  0% {
+    transform: translateX(-100%) scaleX(0.35);
+  }
+  45% {
+    transform: translateX(10%) scaleX(0.6);
+  }
+  100% {
+    transform: translateX(190%) scaleX(0.35);
+  }
+}
+
+@keyframes bw-shimmer {
+  0% {
+    background-position: -160% 0;
+  }
+  100% {
+    background-position: 260% 0;
+  }
+}
+
+@keyframes bw-pulse-ring {
+  0% {
+    transform: scale(0.82);
+    opacity: 0.7;
+  }
+  70% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+
+@keyframes bw-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.28;
+  }
+}
+
+@keyframes bw-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ------------------------------------------------- Uiverse: Banter loader -- */
+/* Adapted from Uiverse.io "Banter Loader" by Nawsome. Nine boxes, sequenced
+   wave of scale + opacity. Colours remapped to the brand ramp.            */
+
+@keyframes bw-banter-box {
+  0% {
+    transform: scale(0.42);
+    opacity: 0.28;
+  }
+  42% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.42);
+    opacity: 0.28;
+  }
+}
+
+/* ---------------------------------------------------- Uiverse: Wave loader -- */
+/* Adapted from Uiverse.io "Wave" by mrpumps31232. Four bars, staggered.
+   Original blue replaced by the saffron -> gold ramp.                    */
+
+@keyframes bw-wave-bar {
+  0%,
+  100% {
+    transform: scaleY(0.32);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+/* ------------------------------------------------------------ graph draw -- */
+
+@keyframes bw-draw-line {
+  from {
+    stroke-dashoffset: var(--bw-path-len, 1200);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes bw-grow-bar {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+.bw-anim-draw {
+  stroke-dasharray: var(--bw-path-len, 1200);
+  stroke-dashoffset: var(--bw-path-len, 1200);
+  animation: bw-draw-line var(--bw-dur-5) var(--bw-ease-out) forwards;
+  animation-delay: var(--bw-draw-delay, 0ms);
+}
+
+.bw-anim-grow {
+  transform-origin: bottom;
+  animation: bw-grow-bar var(--bw-dur-4) var(--bw-ease-out) backwards;
+  animation-delay: var(--bw-grow-delay, 0ms);
+}
+
+/* --------------------------------------------------------- route change -- */
+
+@keyframes bw-page-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.bw-page-enter {
+  animation: bw-page-in var(--bw-dur-4) var(--bw-ease-out) both;
+}
+
+/* ------------------------------------------------------------- progress -- */
+
+/* Indeterminate sweep, used only when the backend reports no ratio. */
+@keyframes bw-progress-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  55% {
+    transform: translateX(220%);
+  }
+  100% {
+    transform: translateX(220%);
+  }
+}
+
+/* Slow 2px-tall brand scan for idle panels; never loops more than once. */
+@keyframes bw-panel-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Panels that appear in response to a run: fade and rise once. */
+@keyframes bw-panel-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}

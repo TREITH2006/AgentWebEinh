@@ -1,0 +1,54 @@
+/* Adapted from Uiverse.io "Banter Loader" by Nawsome — brand colour remap. */
+
+.wrapper {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--bw-s-3);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+}
+
+.box {
+  display: block;
+  border-radius: 3px;
+  background: linear-gradient(150deg, var(--bw-amber), var(--bw-bronze));
+  animation: bw-banter-box 1.25s var(--bw-ease-in-out) infinite;
+  transform: scale(0.42);
+}
+
+.label {
+  font-size: var(--bw-fs-2xs);
+  font-weight: 600;
+  letter-spacing: var(--bw-tr-wide);
+  text-transform: uppercase;
+  color: var(--bw-text-faint);
+}
+
+.sm .box {
+  width: 6px;
+  height: 6px;
+}
+
+.md .box {
+  width: 10px;
+  height: 10px;
+}
+
+.lg .box {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+}
+
+.sm .grid {
+  gap: 3px;
+}
+
+.lg .grid {
+  gap: 7px;
+}

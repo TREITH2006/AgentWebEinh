@@ -1,0 +1,146 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.28rem 0.7rem 0.28rem 0.55rem;
+  border: 1px solid var(--tone-line);
+  border-radius: var(--bw-r-pill);
+  background: var(--tone-bg);
+  color: var(--tone-fg);
+  font-family: var(--bw-font-sans);
+  font-size: var(--bw-fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  line-height: 1.5;
+}
+
+.sm {
+  font-size: var(--bw-fs-2xs);
+  padding: 0.18rem 0.55rem 0.18rem 0.42rem;
+}
+
+.dotWrap {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  width: 7px;
+  height: 7px;
+}
+
+.dot {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.dot[data-pulse] {
+  animation: bw-blink 1.9s var(--bw-ease-in-out) infinite;
+}
+
+.ring {
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  opacity: 0;
+  animation: bw-pulse-ring 2s var(--bw-ease-out) infinite;
+}
+
+/* ----------------------------------------------------------------- tones -- */
+
+.idle {
+  --tone-bg: rgba(107, 117, 148, 0.14);
+  --tone-line: rgba(107, 117, 148, 0.34);
+  --tone-fg: var(--bw-text-muted);
+}
+
+.pending {
+  --tone-bg: var(--bw-info-soft);
+  --tone-line: rgba(81, 73, 239, 0.5);
+  --tone-fg: #a5a0ff;
+}
+
+.active {
+  --tone-bg: var(--bw-accent-soft-2);
+  --tone-line: var(--bw-accent-line-strong);
+  --tone-fg: var(--bw-amber);
+}
+
+.warning {
+  --tone-bg: var(--bw-warn-soft);
+  --tone-line: rgba(227, 184, 102, 0.45);
+  --tone-fg: #f0d9a8;
+}
+
+.success {
+  --tone-bg: var(--bw-ok-soft);
+  --tone-line: rgba(63, 202, 154, 0.36);
+  --tone-fg: #6fe0b4;
+}
+
+.danger {
+  --tone-bg: var(--bw-danger-soft);
+  --tone-line: rgba(239, 95, 95, 0.42);
+  --tone-fg: #ff9a92;
+}
+
+/* ------------------------------------------------------------------ pill -- */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--tone-line, var(--bw-line-2));
+  border-radius: var(--bw-r-xs);
+  background: var(--tone-bg, rgba(255, 255, 255, 0.03));
+  color: var(--tone-fg, var(--bw-text-muted));
+  font-size: var(--bw-fs-2xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  line-height: 1.6;
+}
+
+.pill-neutral {
+  --tone-bg: rgba(255, 255, 255, 0.035);
+  --tone-line: var(--bw-line-2);
+  --tone-fg: var(--bw-text-faint);
+}
+
+.pill-active {
+  --tone-bg: var(--bw-accent-soft-2);
+  --tone-line: var(--bw-accent-line-strong);
+  --tone-fg: var(--bw-amber);
+}
+
+.pill-warning {
+  --tone-bg: var(--bw-warn-soft);
+  --tone-line: rgba(227, 184, 102, 0.45);
+  --tone-fg: #f0d9a8;
+}
+
+.pill-success {
+  --tone-bg: var(--bw-ok-soft);
+  --tone-line: rgba(63, 202, 154, 0.36);
+  --tone-fg: #6fe0b4;
+}
+
+.pill-danger {
+  --tone-bg: var(--bw-danger-soft);
+  --tone-line: rgba(239, 95, 95, 0.42);
+  --tone-fg: #ff9a92;
+}
+
+.pill-idle {
+  --tone-bg: rgba(107, 117, 148, 0.14);
+  --tone-line: rgba(107, 117, 148, 0.34);
+  --tone-fg: var(--bw-text-muted);
+}
+
+.pillIcon {
+  display: inline-flex;
+}

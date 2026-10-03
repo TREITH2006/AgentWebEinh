@@ -142,18 +142,57 @@ export interface SourceDto {
   accessedAt?: string | null;
 }
 
+/* ----------------------------------------------------------------- status -- */
+
+/**
+ * GET /api/status and GET /health — `backend/app/schemas/stats.py::StatusResponse`.
+ *
+ * This document is also the frontend's identity check: a listener that cannot
+ * produce this shape is not AgentWebEinh and must not be treated as the live
+ * backend. `components.database` and `components.task_manager` are the two keys
+ * `isAgentWebEinhStatus` requires for that reason.
+ */
+export interface ComponentStatusDto {
+  state?: string;
+  detail?: string | null;
+  latency_ms?: number | null;
+  version?: string | null;
+}
+
+export interface StatusResponseDto {
+  status?: "healthy" | "degraded" | "unhealthy";
+  healthy?: boolean;
+  version?: string;
+  environment?: string;
+  server_time?: string;
+  uptime_seconds?: number;
+  public_base_url?: string;
+  components?: Record<string, ComponentStatusDto>;
+  ollama?: Record<string, unknown> | null;
+  openclaw?: Record<string, unknown> | null;
+  browser?: Record<string, unknown> | null;
+  tinyfish?: Record<string, unknown> | null;
+  notes?: string[];
+}
+
 /* ------------------------------------------------------------------ stats -- */
 
-/** GET /api/stats?range=30d */
+/**
+ * GET /api/stats?range=30d — `backend/app/schemas/stats.py::StatsResponse`.
+ *
+ * The backend emits **flat, top-level** counters with `buckets` and `recent` at
+ * the root; there is no `totals` wrapper. `normalizeStats` still accepts a nested
+ * `{totals:{...}}` for tolerance with other backends, but the declared shape is
+ * the one this backend actually sends. `success_rate` is a 0..1 ratio.
+ */
 export interface StatsResponse {
-  totals: {
-    totalTasks?: number;
-    completedTasks?: number;
-    failedTasks?: number;
-    cancelledTasks?: number;
-    successRate?: number;
-    averageDurationMs?: number | null;
-  };
+  total_tasks?: number;
+  completed_tasks?: number;
+  failed_tasks?: number;
+  cancelled_tasks?: number;
+  success_rate?: number;
+  average_duration_ms?: number | null;
+  range?: string;
   buckets?: StatsBucketDto[];
   recent?: TaskDto[];
 }
@@ -164,8 +203,8 @@ export interface StatsBucketDto {
   completed?: number;
   failed?: number;
   cancelled?: number;
-  durationMs?: number | null;
-  successRate?: number | null;
+  duration_ms?: number | null;
+  success_rate?: number | null;
 }
 
 /* ------------------------------------------------------------------ frames -- */

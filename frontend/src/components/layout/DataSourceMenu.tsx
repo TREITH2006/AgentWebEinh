@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { useDataSource } from "@/lib/data-source";
 import type { ApiMode } from "@/lib/config";
+import type { SourceStatus } from "@/lib/data-source";
 import { Badge } from "@/components/ui/StatusBadge";
 import { CheckIcon, ChevronDownIcon } from "@/components/ui/icons";
 import styles from "./DataSourceMenu.module.css";
@@ -22,6 +23,20 @@ const OPTIONS: readonly { value: ApiMode; label: string; detail: string }[] = [
   { value: "live", label: "Live backend", detail: "Always call the AgentWebEinh API" },
   { value: "demo", label: "Demo data", detail: "Sample tasks and simulated runs" },
 ];
+
+/** Never say "Demo" for a state that is not demo data. */
+function statusLabel(status: SourceStatus): string {
+  switch (status) {
+    case "checking":
+      return "Checking…";
+    case "live":
+      return "Live";
+    case "demo":
+      return "Demo";
+    case "error":
+      return "Error";
+  }
+}
 
 export function DataSourceMenu(): React.JSX.Element {
   const { status, override, setOverride, reason } = useDataSource();
@@ -44,7 +59,7 @@ export function DataSourceMenu(): React.JSX.Element {
     };
   }, [open]);
 
-  const label = status === "checking" ? "Checking…" : status === "live" ? "Live" : "Demo";
+  const label = statusLabel(status);
 
   return (
     <div className={styles.root} ref={wrapRef}>
@@ -96,6 +111,10 @@ export function DataSourceMenu(): React.JSX.Element {
           <div className={styles.menuFoot}>
             {status === "live" ? (
               <Badge tone="success">Connected to backend</Badge>
+            ) : status === "error" ? (
+              <Badge tone="danger">Backend not in use</Badge>
+            ) : status === "checking" ? (
+              <Badge tone="neutral">Checking backend…</Badge>
             ) : (
               <Badge tone="warning">Showing sample data</Badge>
             )}

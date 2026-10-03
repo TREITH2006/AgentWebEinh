@@ -7,11 +7,26 @@
 import { API_CONFIG, apiUrl } from "../config";
 import type { ApiErrorBody } from "@/types/api";
 
+/**
+ * Why a request failed.
+ *
+ * `frontend-unavailable` and `backend-unavailable` are deliberately distinct even
+ * though both surface as a failed fetch from the browser: every REST call is
+ * same-origin through the Next.js rewrite, so a dead request means *this* app's
+ * server is gone, while an upstream failure arrives as a real HTTP status.
+ */
+export type ApiFailureKind =
+  | "frontend-unavailable"
+  | "backend-unavailable"
+  | "wrong-backend"
+  | "endpoint-error";
+
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string | null;
   readonly fields: Record<string, string>;
   readonly url: string;
+  readonly kind: ApiFailureKind;
 
   constructor(init: {
     message: string;
@@ -19,6 +34,7 @@ export class ApiError extends Error {
     code?: string | null;
     fields?: Record<string, string>;
     url: string;
+    kind?: ApiFailureKind;
   }) {
     super(init.message);
     this.name = "ApiError";
@@ -26,6 +42,7 @@ export class ApiError extends Error {
     this.code = init.code ?? null;
     this.fields = init.fields ?? {};
     this.url = init.url;
+    this.kind = init.kind ?? defaultKind(init.status);
   }
 
   /** 404 is special-cased because the UI shows a dedicated "not found" state. */
@@ -34,8 +51,25 @@ export class ApiError extends Error {
   }
 
   get isNetwork(): boolean {
-    return this.status === 0;
+    return this.kind === "frontend-unavailable";
   }
+
+  /** True when the API answered but refused or failed the request itself. */
+  get isEndpointError(): boolean {
+    return this.kind === "endpoint-error";
+  }
+}
+
+/**
+ * Map an HTTP status onto a failure kind.
+ *
+ * A 5xx from the rewrite means the proxy could not get a clean answer from the
+ * backend, which is a connectivity problem rather than an API contract problem.
+ */
+function defaultKind(status: number): ApiFailureKind {
+  if (status === 0) return "frontend-unavailable";
+  if (status >= 500) return "backend-unavailable";
+  return "endpoint-error";
 }
 
 export interface RequestOptions {
@@ -69,15 +103,15 @@ function parseErrorBody(raw: string): ApiErrorBody | null {
 function friendlyMessage(status: number, fallback?: string | null): string {
   switch (status) {
     case 0:
-      return "Cannot reach the AgentWebEinh service.";
+      return "This app's server did not answer. It may have stopped or still be starting.";
     case 400:
       return fallback ?? "The request was rejected as invalid.";
     case 401:
-      return "This action requires authentication.";
+      return "The AgentWebEinh API requires no authentication, so a challenge here means this is a different service.";
     case 403:
-      return "This action is not permitted.";
+      return "The service refused this request. If it asks for credentials, it is not the AgentWebEinh API.";
     case 404:
-      return fallback ?? "That resource does not exist.";
+      return fallback ?? "That endpoint does not exist on the service answering at this address.";
     case 409:
       return fallback ?? "The task is already running or has finished.";
     case 422:
@@ -85,7 +119,9 @@ function friendlyMessage(status: number, fallback?: string | null): string {
     case 429:
       return "Too many requests. Wait a moment and try again.";
     default:
-      if (status >= 500) return fallback ?? "The service reported an internal error.";
+      if (status >= 500) {
+        return fallback ?? "The backend could not be reached through the proxy.";
+      }
       return fallback ?? `Request failed (${status}).`;
   }
 }
@@ -148,21 +184,5 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
       status: response.status,
       url,
     });
-  }
-}
-
-/** Availability probe. Never throws — returns a reason string when unavailable. */
-export async function probeHealth(path: string, timeoutMs: number): Promise<{ ok: true } | { ok: false; reason: string }> {
-  try {
-    await request<unknown>(path, { method: "GET", timeoutMs });
-    return { ok: true };
-  } catch (error) {
-    const reason =
-      error instanceof ApiError
-        ? error.status === 0
-          ? "backend not reachable"
-          : `backend responded ${error.status}`
-        : "backend check failed";
-    return { ok: false, reason };
   }
 }

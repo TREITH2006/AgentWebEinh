@@ -47,6 +47,11 @@
   animation: bw-blink 1.2s var(--bw-ease-in-out) infinite;
 }
 
+.dot[data-status="error"] {
+  background: var(--bw-danger);
+  box-shadow: 0 0 0 3px rgba(239, 95, 95, 0.18);
+}
+
 .triggerLabel {
   min-width: 52px;
   text-align: left;

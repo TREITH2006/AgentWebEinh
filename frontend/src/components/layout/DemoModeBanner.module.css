@@ -33,6 +33,51 @@
   animation: bw-blink 1.4s var(--bw-ease-in-out) infinite;
 }
 
+/* Error tone: the live backend was asked for and could not be verified. Reads as
+   a fault rather than a notice, and is never dismissible. */
+.banner[data-status="error"] {
+  border-bottom-color: rgba(239, 95, 95, 0.32);
+  background:
+    linear-gradient(90deg, rgba(239, 95, 95, 0.14), rgba(140, 40, 40, 0.16) 60%, rgba(239, 95, 95, 0.07)),
+    rgba(30, 20, 26, 0.9);
+}
+
+.tag[data-error] {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-color: rgba(239, 95, 95, 0.5);
+  background: var(--bw-danger-soft);
+  color: var(--bw-danger);
+}
+
+.retry {
+  flex: none;
+  padding: 0.2rem 0.6rem;
+  border: 1px solid rgba(239, 95, 95, 0.42);
+  border-radius: var(--bw-r-xs);
+  background: var(--bw-danger-soft);
+  color: var(--bw-danger);
+  font-size: var(--bw-fs-2xs);
+  font-weight: 700;
+  letter-spacing: var(--bw-tr-wide);
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition:
+    background var(--bw-dur-2) var(--bw-ease-out),
+    border-color var(--bw-dur-2) var(--bw-ease-out);
+}
+
+.retry:hover {
+  border-color: rgba(239, 95, 95, 0.7);
+  background: rgba(239, 95, 95, 0.24);
+}
+
+.retry:focus-visible {
+  outline: 2px solid var(--bw-danger);
+  outline-offset: 2px;
+}
+
 .text {
   flex: 1;
   min-width: 0;

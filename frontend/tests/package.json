@@ -1,0 +1,4 @@
+{
+  "//": "Scopes these files to ESM for `node --test`. Declared here rather than in the package root so Next.js keeps its own module resolution.",
+  "type": "module"
+}

@@ -15,7 +15,10 @@ export async function fetchStats(
 ): Promise<TaskStats> {
   const dto = await request<StatsResponse>(API_ENDPOINTS.stats, {
     signal,
-    query: { range, bucket: "day" },
+    // `range` is the only parameter `backend/app/api/stats.py` reads. `bucket`
+    // used to be sent here, was silently ignored, and implied a granularity the
+    // API does not expose; bucket size is derived from the range server-side.
+    query: { range },
   });
   const { totals, buckets, recent } = normalizeStats(dto, origin);
   return { origin, ...totals, buckets, recent };

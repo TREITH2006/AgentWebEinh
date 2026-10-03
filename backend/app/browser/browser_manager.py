@@ -3,16 +3,16 @@
 Three rules this module enforces, because breaking any of them produces a
 corrupted browser session rather than a clean error:
 
-1. **One browser process, one task at a time.** A single Playwright browser is
-   launched lazily and a task-level :class:`asyncio.Lock` is held for the whole
-   session. That is what guarantees the orchestrator's browser agent and any
-   OpenClaw-driven navigation can never control the same browser concurrently.
-2. **Nothing launches at import or during health checks.**
-   :meth:`BrowserManager.probe` only inspects the on-disk Playwright browser
-   cache, so ``GET /health`` never spawns a process.
-3. **Every session cleans up.** The session is an async context manager; the
-   context and page are closed on exit including on cancellation and timeout, and
-   the browser is stopped when the manager shuts down.
+1. One browser process, one task at a time. A single Playwright browser is
+   launched lazily and a task-level asyncio.Lock is held for the whole
+   session. That guarantees the orchestrator's browser agent and any
+   OpenClaw-driven navigation cannot control the same browser concurrently.
+2. Nothing launches at import or during health checks.
+   BrowserManager.probe only inspects the installed Playwright package and
+   on-disk browser cache, so GET /health never spawns a process.
+3. Every session cleans up. The session is an async context manager; the
+   context and page are closed on exit including on cancellation and timeout,
+   and the browser is stopped when the manager shuts down.
 """
 
 from __future__ import annotations
@@ -24,6 +24,7 @@ import os
 import sys
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
+from importlib.metadata import version
 from pathlib import Path
 from typing import Any
 
@@ -31,20 +32,22 @@ from ..config import Settings
 
 logger = logging.getLogger("agentwebeinh.browser")
 
-#: Playwright's browser download cache, per platform.
+
 def _browser_cache_dir() -> Path:
+    """Return Playwright's browser download cache for this platform."""
     if sys.platform == "win32":
         local = os.environ.get("LOCALAPPDATA")
-        return Path(local) / "ms-playwright" if local else Path.home() / "AppData/Local/ms-playwright"
+        return (
+            Path(local) / "ms-playwright"
+            if local
+            else Path.home() / "AppData/Local/ms-playwright"
+        )
     if sys.platform == "darwin":
         return Path.home() / "Library/Caches/ms-playwright"
     return Path.home() / ".cache/ms-playwright"
 
 
-#: Cap on how many interactive elements are described to the model per step.
 MAX_ELEMENTS = 60
-
-#: Hard cap on characters of page text handed to the model.
 MAX_TEXT_CHARS = 6_000
 
 
@@ -71,7 +74,13 @@ class BrowserUnavailable(RuntimeError):
 class BrowserSession:
     """One page owned by one task."""
 
-    def __init__(self, page: Any, context: Any, settings: Settings, task_id: str) -> None:
+    def __init__(
+        self,
+        page: Any,
+        context: Any,
+        settings: Settings,
+        task_id: str,
+    ) -> None:
         self._page = page
         self._context = context
         self._settings = settings
@@ -83,14 +92,21 @@ class BrowserSession:
     async def current(self) -> tuple[str | None, str | None]:
         try:
             url = self._page.url
-        except Exception:  # noqa: BLE001 - a closed page reports no location
+        except Exception:  # noqa: BLE001
             return None, None
+
         title: str | None = None
         with contextlib.suppress(Exception):
             title = await self._page.title()
+
         return (url or None), title
 
-    async def goto(self, url: str, *, wait_until: str = "domcontentloaded") -> None:
+    async def goto(
+        self,
+        url: str,
+        *,
+        wait_until: str = "domcontentloaded",
+    ) -> None:
         await self._page.goto(
             url,
             wait_until=wait_until,
@@ -98,21 +114,17 @@ class BrowserSession:
         )
 
     async def text(self, limit: int = MAX_TEXT_CHARS) -> str:
-        """Readable text of the page, whitespace-collapsed and truncated."""
+        """Readable page text, whitespace-collapsed and truncated."""
         try:
             raw = await self._page.inner_text("body", timeout=5_000)
-        except Exception:  # noqa: BLE001 - some pages have no body yet
+        except Exception:  # noqa: BLE001
             return ""
+
         collapsed = " ".join((raw or "").split())
         return collapsed[:limit]
 
     async def elements(self, limit: int = MAX_ELEMENTS) -> list[ElementRef]:
-        """Enumerate interactive elements with stable generated selectors.
-
-        Selectors are generated from element ids so the agent refers to elements
-        by index rather than by brittle CSS, which also keeps page-provided text
-        out of selector construction entirely.
-        """
+        """Enumerate interactive elements with stable generated selectors."""
         script = """
         (max) => {
           const out = [];
@@ -138,11 +150,17 @@ class BrowserSession:
           return out;
         }
         """
+
         try:
             raw = await self._page.evaluate(script, limit)
-        except Exception as exc:  # noqa: BLE001 - evaluate can fail on odd pages
-            logger.debug("element_scan_failed task_id=%s error=%s", self.task_id, exc)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug(
+                "element_scan_failed task_id=%s error=%s",
+                self.task_id,
+                exc,
+            )
             return []
+
         refs: list[ElementRef] = []
         for index, entry in enumerate(raw or [], start=1):
             refs.append(
@@ -154,18 +172,22 @@ class BrowserSession:
                     text=str(entry.get("text", "")),
                 )
             )
+
         return refs
 
     # ----------------------------------------------------------------- actions --
 
     async def click(self, selector: str) -> None:
         await self._page.click(
-            selector, timeout=self._settings.browser_navigation_timeout_ms
+            selector,
+            timeout=self._settings.browser_navigation_timeout_ms,
         )
 
     async def fill(self, selector: str, value: str) -> None:
         await self._page.fill(
-            selector, value, timeout=self._settings.browser_navigation_timeout_ms
+            selector,
+            value,
+            timeout=self._settings.browser_navigation_timeout_ms,
         )
 
     async def press(self, key: str) -> None:
@@ -174,11 +196,12 @@ class BrowserSession:
     async def scroll(self, direction: str = "down") -> None:
         delta = 800 if direction == "down" else -800
         await self._page.mouse.wheel(0, delta)
-        # Give lazy-loaded content a moment to render.
         await asyncio.sleep(0.4)
 
     async def back(self) -> None:
-        await self._page.go_back(timeout=self._settings.browser_navigation_timeout_ms)
+        await self._page.go_back(
+            timeout=self._settings.browser_navigation_timeout_ms
+        )
 
     # ---------------------------------------------------------------- capture --
 
@@ -189,7 +212,10 @@ class BrowserSession:
             quality=self._settings.browser_frame_quality,
             timeout=15_000,
         )
-        width, height = self._settings.browser_viewport_width, self._settings.browser_viewport_height
+
+        width = self._settings.browser_viewport_width
+        height = self._settings.browser_viewport_height
+
         with contextlib.suppress(Exception):
             size = await self._page.evaluate(
                 "() => ({ w: window.innerWidth, h: window.innerHeight })"
@@ -197,18 +223,24 @@ class BrowserSession:
             if isinstance(size, dict):
                 width = int(size.get("w") or width)
                 height = int(size.get("h") or height)
+
         return data, width, height
 
     async def close(self) -> None:
         if self._closed:
             return
+
         self._closed = True
         for name, target in (("context", self._context), ("page", self._page)):
             try:
                 await target.close()
-            except Exception as exc:  # noqa: BLE001 - teardown must not raise
-                logger.debug("browser_close_failed task_id=%s target=%s error=%s",
-                             self.task_id, name, exc)
+            except Exception as exc:  # noqa: BLE001
+                logger.debug(
+                    "browser_close_failed task_id=%s target=%s error=%s",
+                    self.task_id,
+                    name,
+                    exc,
+                )
 
 
 class BrowserManager:
@@ -219,7 +251,6 @@ class BrowserManager:
         self._playwright: Any = None
         self._browser: Any = None
         self._start_lock = asyncio.Lock()
-        #: Held for the duration of a session: no two tasks share the browser.
         self._exclusive = asyncio.Lock()
         self._active: dict[str, BrowserSession] = {}
         self._launched = False
@@ -227,20 +258,29 @@ class BrowserManager:
     # ------------------------------------------------------------------ health --
 
     def probe(self) -> dict[str, Any]:
-        """Report what is installed **without launching anything**."""
+        """Report what is installed without launching anything."""
         playwright_available = False
         playwright_version: str | None = None
-        with contextlib.suppress(Exception):
-            from playwright import __version__ as playwright_version  # type: ignore[no-redef]
 
+        # Playwright does not reliably expose __version__ from its package
+        # namespace. Read the installed distribution version instead.
+        try:
+            import playwright  # noqa: F401
+
+            playwright_version = version("playwright")
             playwright_available = True
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("playwright_probe_failed error=%s", exc)
 
         chromium_available = False
         chromium_path: Path | None = None
         cache = _browser_cache_dir()
+
         if cache.is_dir():
             for entry in sorted(cache.iterdir()):
-                if entry.is_dir() and entry.name.startswith(("chromium-", "chromium_headless_shell-")):
+                if entry.is_dir() and entry.name.startswith(
+                    ("chromium-", "chromium_headless_shell-")
+                ):
                     chromium_available = True
                     chromium_path = entry
                     break
@@ -267,22 +307,34 @@ class BrowserManager:
         async with self._start_lock:
             if self._browser is not None:
                 return self._browser
+
             if not self._settings.browser_enabled:
-                raise BrowserUnavailable("Browser automation is disabled (AWE_BROWSER_ENABLED=false).")
+                raise BrowserUnavailable(
+                    "Browser automation is disabled (AWE_BROWSER_ENABLED=false)."
+                )
+
             probe = self.probe()
+
             if not probe["playwright_available"]:
-                raise BrowserUnavailable("Playwright is not installed in this environment.")
+                raise BrowserUnavailable(
+                    "Playwright is not installed in this environment."
+                )
+
             if not probe["chromium_available"]:
                 raise BrowserUnavailable(
                     "No Playwright Chromium build was found. Run "
                     "`python -m playwright install chromium` inside backend\\.venv."
                 )
+
             try:
                 from playwright.async_api import async_playwright
-            except ImportError as exc:  # pragma: no cover - guarded by the probe
-                raise BrowserUnavailable("Playwright could not be imported.") from exc
+            except ImportError as exc:  # pragma: no cover
+                raise BrowserUnavailable(
+                    "Playwright could not be imported."
+                ) from exc
 
             self._playwright = await async_playwright().start()
+
             try:
                 self._browser = await self._playwright.chromium.launch(
                     headless=self._settings.browser_headless,
@@ -291,9 +343,15 @@ class BrowserManager:
                 )
             except Exception as exc:
                 await self._stop_playwright()
-                raise BrowserUnavailable(f"Chromium failed to launch: {exc}") from exc
+                raise BrowserUnavailable(
+                    f"Chromium failed to launch: {exc}"
+                ) from exc
+
             self._launched = True
-            logger.info("browser_launched engine=%s", self._settings.browser_engine)
+            logger.info(
+                "browser_launched engine=%s",
+                self._settings.browser_engine,
+            )
             return self._browser
 
     async def _stop_playwright(self) -> None:
@@ -304,15 +362,13 @@ class BrowserManager:
 
     @contextlib.asynccontextmanager
     async def session(self, task_id: str) -> AsyncIterator[BrowserSession]:
-        """Yield an exclusive browser session, guaranteed to be cleaned up.
-
-        The exclusivity lock is held for the whole block. Concurrent tasks queue
-        for the browser rather than interleaving actions on one page.
-        """
+        """Yield an exclusive browser session, guaranteed to be cleaned up."""
         await self._exclusive.acquire()
+
         browser: Any = None
         context: Any = None
         session: BrowserSession | None = None
+
         try:
             browser = await self._ensure_browser()
             context = await browser.new_context(
@@ -323,11 +379,20 @@ class BrowserManager:
                 user_agent=self._settings.browser_user_agent,
                 ignore_https_errors=False,
             )
-            context.set_default_timeout(self._settings.browser_navigation_timeout_ms)
+            context.set_default_timeout(
+                self._settings.browser_navigation_timeout_ms
+            )
             page = await context.new_page()
-            session = BrowserSession(page, context, self._settings, task_id)
+
+            session = BrowserSession(
+                page,
+                context,
+                self._settings,
+                task_id,
+            )
             self._active[task_id] = session
             yield session
+
         finally:
             if session is not None:
                 await session.close()
@@ -335,6 +400,7 @@ class BrowserManager:
             elif context is not None:
                 with contextlib.suppress(Exception):
                     await context.close()
+
             self._exclusive.release()
 
     async def stop(self) -> None:
@@ -342,10 +408,12 @@ class BrowserManager:
         for task_id, session in list(self._active.items()):
             await session.close()
             self._active.pop(task_id, None)
+
         if self._browser is not None:
             with contextlib.suppress(Exception):
                 await self._browser.close()
             self._browser = None
+
         await self._stop_playwright()
         self._launched = False
         logger.info("browser_stopped")

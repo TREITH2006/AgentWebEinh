@@ -34,6 +34,7 @@ class OllamaAdapter:
             base_url=settings.ollama_url,
             timeout=httpx.Timeout(settings.ollama_timeout_seconds, connect=5.0),
         )
+        self._think_supported = True
 
     # ----------------------------------------------------------------- health --
 
@@ -132,6 +133,11 @@ class OllamaAdapter:
                 "num_predict": budget,
             },
             "keep_alive": self._settings.ollama_keep_alive,
+            # Ask for the answer directly. Without this a reasoning model may spend
+            # the entire ``num_predict`` budget on its ``thinking`` block and return
+            # an empty completion. Older Ollama builds reject the field, so
+            # :meth:`_post_chat` drops it once and remembers.
+            "think": self._settings.ollama_think,
         }
         if as_json:
             body["format"] = "json"
@@ -186,9 +192,16 @@ class OllamaAdapter:
             ) from exc
 
         if response.status_code >= 400:
+            text = redact(response.text, limit=300)
+            # Older Ollama builds do not know the ``think`` field. Drop it once,
+            # remember, and retry so a single unsupported option cannot take down
+            # every completion for the rest of the process lifetime.
+            if "think" in body and not self._think_supported and _rejects_field(text, "think"):
+                logger.warning("ollama_rejects_think_field dropping it for this process")
+                self._think_supported = False
+                return await self._post_chat({k: v for k, v in body.items() if k != "think"})
             raise AdapterError(
-                f"Ollama returned HTTP {response.status_code}: "
-                f"{redact(response.text, limit=300)}",
+                f"Ollama returned HTTP {response.status_code}: {text}",
                 code="ollama_http_error",
                 retryable=response.status_code >= 500,
             )
@@ -248,6 +261,18 @@ class OllamaAdapter:
 
     async def close(self) -> None:
         await self._client.aclose()
+
+
+def _rejects_field(error_text: str, field: str) -> bool:
+    """True when an Ollama error names ``field`` as the unsupported option.
+
+    Matching on the field name keeps the fallback narrow: a 400 about something
+    else must still surface as a real failure instead of being retried.
+    """
+    lowered = error_text.lower()
+    return field in lowered and (
+        "invalid" in lowered or "unknown" in lowered or "unrecognized" in lowered or "extra" in lowered
+    )
 
 
 def _coerce_json_object(raw: str) -> dict[str, Any] | None:

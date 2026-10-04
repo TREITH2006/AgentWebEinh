@@ -57,6 +57,7 @@ def _browser_cache_dir() -> Path:
 
 MAX_ELEMENTS = 60
 MAX_TEXT_CHARS = 6_000
+MAX_HEADINGS = 20
 
 
 @dataclass(frozen=True, slots=True)
@@ -130,6 +131,37 @@ class BrowserSession:
 
         collapsed = " ".join((raw or "").split())
         return collapsed[:limit]
+
+    async def headings(self, limit: int = MAX_HEADINGS) -> list[str]:
+        """Distinct ``h1``-``h3`` texts in document order.
+
+        Flat page text runs a heading straight into the paragraph beneath it, so a
+        model asked for "the main heading" answers with both. Returning the
+        headings separately lets the observation state them unambiguously.
+        """
+        script = """
+        (max) => {
+          const out = [];
+          for (const el of document.querySelectorAll('h1, h2, h3')) {
+            const text = (el.innerText || '').replace(/\\s+/g, ' ').trim();
+            if (!text) continue;
+            if (out.some((entry) => entry.text === text)) continue;
+            out.push({ level: Number(el.tagName.slice(1)), text: text.slice(0, 200) });
+            if (out.length >= max) break;
+          }
+          return out;
+        }
+        """
+        try:
+            found = await self._page.evaluate(script, limit)
+        except Exception:  # noqa: BLE001
+            return []
+
+        headings: list[str] = []
+        for entry in found or []:
+            if isinstance(entry, dict) and entry.get("text"):
+                headings.append(f"h{entry.get('level', 1)}: {entry['text']}")
+        return headings
 
     async def elements(self, limit: int = MAX_ELEMENTS) -> list[ElementRef]:
         """Enumerate interactive elements with stable generated selectors."""

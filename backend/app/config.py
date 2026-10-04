@@ -61,12 +61,15 @@ class Settings(BaseSettings):
 
     # ------------------------------------------------------ task execution --
     max_concurrent_tasks: int = 2
-    task_timeout_seconds: int = 900
+    task_timeout_seconds: int = 1_800
     #: Budget for one model call inside the agent loop. Must exceed the real
     #: latency of the configured local model: ``qwen3-vl:8b`` on CPU takes well
     #: over two minutes to answer one action, so a tighter budget failed every run
-    #: with ``model_timeout`` before the model ever spoke.
-    step_timeout_seconds: int = 300
+    #: with ``model_timeout`` before the model ever spoke. Measured latency on this
+    #: machine ranges from ~10s to >300s for the same call, because the length of
+    #: the model's ``thinking`` block is unpredictable, so this is set above the
+    #: worst case observed rather than the average.
+    step_timeout_seconds: int = 420
     max_orchestrator_steps: int = 30
     #: How long a task may wait for the single shared browser before giving up.
     #: Without a bound, a second concurrent task blocked inside the exclusivity
@@ -113,8 +116,11 @@ class Settings(BaseSettings):
     ollama_model: str = "qwen3-vl:8b"
     ollama_embedding_model: str = "qwen3-embedding:0.6b"
     ollama_health_timeout_seconds: float = 4.0
-    ollama_timeout_seconds: float = 180.0
-    ollama_num_ctx: int = 8_192
+    ollama_timeout_seconds: float = 480.0
+    #: Must comfortably exceed ``ollama_num_predict_floor``: Ollama silently drops
+    #: the oldest messages when prompt plus predicted tokens exceed the context
+    #: window, which would quietly remove the system prompt and the task.
+    ollama_num_ctx: int = 16_384
     ollama_temperature: float = 0.1
     ollama_keep_alive: str = "10m"
     #: Lower bound applied to every ``num_predict`` budget.
@@ -126,7 +132,15 @@ class Settings(BaseSettings):
     #: ``ollama_empty`` — a hard failure that looks like an unreachable model.
     #: Ollama's ``think=false`` does not suppress this for the VL build, so the
     #: floor is the reliable fix. Raise it for models that deliberate at length.
-    ollama_num_predict_floor: int = 2_048
+    ollama_num_predict_floor: int = 8_192
+    #: Whether the model may spend tokens on a ``thinking`` block before answering.
+    #:
+    #: Every caller here wants a direct answer: one JSON action, or one report
+    #: object. A reasoning model given permission to think will spend the whole
+    #: ``num_predict`` budget doing it and return ``done_reason="length"`` with an
+    #: empty completion, which surfaced as a hard ``ollama_empty`` failure. Off by
+    #: default; set true only for a model/task that genuinely needs it.
+    ollama_think: bool = False
 
     # ------------------------------------------------------------- browser --
     browser_enabled: bool = True

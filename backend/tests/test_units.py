@@ -16,10 +16,14 @@ import pytest
 from app.adapters.base import AdapterError, IntegrationHealth
 from app.adapters.browser_adapter import (
     _PROGRESS_STARTED,
-    BrowserRunResult,
     _looks_like_challenge,
     _progress_for_step,
+    _stalled_summary,
+    _STALL_STEP_LIMIT,
     _url_from_prompt,
+    ACTIONS,
+    BrowserRunResult,
+    normalize_action,
 )
 from app.adapters.openclaw_adapter import _extract_reply
 from app.browser.frame_manager import FrameManager
@@ -463,3 +467,99 @@ def _health_service_stub():
         tinyfish=mock.Mock(health=_immediate_health("tinyfish", "disabled", "off.")),
         frames=mock.Mock(),
     )
+
+
+def test_exact_duplicate_finding_is_rejected_so_a_run_cannot_loop_on_it():
+    """The measured failure was the same finding re-emitted until the task timed out."""
+    result = BrowserRunResult()
+
+    assert result.add_finding("page_title", "AgentWebEinh Local Test") is True
+    assert result.add_finding("page_title", "AgentWebEinh Local Test") is False
+    assert len(result.findings) == 1
+
+
+def test_same_label_with_a_different_value_is_kept():
+    """Deduplication must not swallow a genuinely updated value."""
+    result = BrowserRunResult()
+
+    result.add_finding("page_title", "First")
+    result.add_finding("page_title", "Second")
+
+    assert [f.value for f in result.findings] == ["First", "Second"]
+
+
+def test_evidence_count_changes_only_when_the_run_learns_something():
+    """Stall detection keys off this, so a page revisit must not look like progress."""
+    result = BrowserRunResult()
+    assert result.evidence_count() == (0, 0, 0)
+
+    result.note_page("http://127.0.0.1:8002/", "AgentWebEinh Local Test")
+    reached = result.evidence_count()
+    assert reached == (0, 0, 1), "a genuinely new page is progress"
+
+    result.note_page("http://127.0.0.1:8002/", "AgentWebEinh Local Test")
+    assert result.evidence_count() == reached, "revisiting a page is not new evidence"
+
+    result.add_finding("main_heading", "Local Browser Test Passed")
+    assert result.evidence_count() != reached
+
+
+def test_stalled_summary_reports_what_was_found_and_does_not_claim_success():
+    result = BrowserRunResult()
+    result.add_finding("page_title", "AgentWebEinh Local Test")
+
+    summary = _stalled_summary(result, step=_STALL_STEP_LIMIT + 2)
+
+    assert "AgentWebEinh Local Test" not in summary or "page_title" in summary
+    assert "3" not in summary.split("step")[0], "must state the step count it stopped at"
+    assert str(_STALL_STEP_LIMIT + 2) in summary
+    assert "complete" not in summary.lower()
+
+
+def test_stalled_summary_without_findings_says_so_instead_of_inventing_one():
+    summary = _stalled_summary(BrowserRunResult(), step=3)
+
+    assert "without" in summary.lower()
+    assert "finding" in summary.lower()
+
+
+@pytest.mark.parametrize(
+    ("given", "expected"),
+    [
+        ("report", "finding"),
+        ("Record Finding", "finding"),
+        ("GO-TO", "goto"),
+        ("Finish", "done"),
+        ("fill", "type"),
+    ],
+)
+def test_model_action_synonyms_map_onto_the_supported_vocabulary(given, expected):
+    """This model answered "report" for what the prompt calls "finding"."""
+    assert normalize_action(given) == expected
+    assert normalize_action(given) in ACTIONS
+
+
+def test_unknown_action_is_not_silently_accepted():
+    assert normalize_action("teleport") not in ACTIONS
+
+
+def test_finding_keeps_the_page_it_came_from_so_the_report_can_cite_it():
+    """Findings arrived with sourceUrl=null, leaving the report uncited."""
+    result = BrowserRunResult()
+
+    result.add_finding("page_title", "AgentWebEinh Local Test", "http://127.0.0.1:8002/")
+
+    assert result.findings[0].source_url == "http://127.0.0.1:8002/"
+
+
+def test_note_page_ignores_a_non_http_url_and_a_repeat():
+    result = BrowserRunResult()
+
+    result.note_page("http://127.0.0.1:8002/", "AgentWebEinh Local Test")
+    result.note_page("http://127.0.0.1:8002/", "AgentWebEinh Local Test")
+    result.note_page("about:blank", "blank")
+    result.note_page(None, None)
+
+    assert result.pages_visited == [
+        {"url": "http://127.0.0.1:8002/", "title": "AgentWebEinh Local Test"}
+    ]

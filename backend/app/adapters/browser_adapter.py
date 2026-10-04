@@ -54,6 +54,38 @@ ACTIONS = frozenset(
     {"search", "goto", "click", "type", "press", "scroll", "back", "finding", "done"}
 )
 
+#: Names the model reaches for instead of the exact action vocabulary. Measured
+#: against this model, which answered "report" for what the prompt calls a
+#: "finding". Rejecting those words would waste a step per mislabelled action, so
+#: obvious synonyms are mapped and anything still unknown is refused as before.
+ACTION_SYNONYMS: dict[str, str] = {
+    "report": "finding",
+    "record": "finding",
+    "record_finding": "finding",
+    "note": "finding",
+    "observe": "finding",
+    "answer": "finding",
+    "extract": "finding",
+    "read": "finding",
+    "navigate": "goto",
+    "open": "goto",
+    "visit": "goto",
+    "go_to": "goto",
+    "find": "search",
+    "finish": "done",
+    "complete": "done",
+    "stop": "done",
+    "submit": "type",
+    "input": "type",
+    "fill": "type",
+}
+
+
+def normalize_action(action: str) -> str:
+    """Map a model's action name onto :data:`ACTIONS`, or return it unchanged."""
+    name = action.strip().lower().replace("-", "_").replace(" ", "_")
+    return ACTION_SYNONYMS.get(name, name)
+
 #: Where a `search` action goes. A plain HTML endpoint keeps this keyless.
 SEARCH_ENDPOINT = "https://duckduckgo.com/html/?q={query}"
 
@@ -181,7 +213,12 @@ class BrowserRunResult:
     summary: str = ""
     steps: int = 0
 
-    def add_finding(self, label: str, value: str) -> bool:
+    def add_finding(
+        self,
+        label: str,
+        value: str,
+        source_url: str | None = None,
+    ) -> bool:
         """Record a fact, ignoring an exact repeat of one already held.
 
         A small model will happily re-report the same fact every turn. Keeping the
@@ -198,16 +235,30 @@ class BrowserRunResult:
             for item in self.findings
         ):
             return False
-        self.findings.append(FindingDto(label=clean_label, value=clean_value[:2_000]))
+        self.findings.append(
+            FindingDto(
+                label=clean_label,
+                value=clean_value[:2_000],
+                # The page a finding came from, so the report can cite evidence
+                # instead of presenting bare assertions.
+                source_url=source_url,
+            )
+        )
         return True
 
     def evidence_count(self) -> tuple[int, int, int]:
         """A cheap signature of everything gathered so far.
 
         Two steps with the same signature produced no new evidence, which is what
-        a stalled agent looks like from outside.
+        a stalled agent looks like from outside. Pages are counted *distinctly*: a
+        loop that reloads the page it is already on has learned nothing, and
+        counting those visits would disguise a stall as progress.
         """
-        return (len(self.findings), len(self.actions), len(self.pages_visited))
+        return (
+            len(self.findings),
+            len(self.actions),
+            len({entry["url"] for entry in self.pages_visited if entry.get("url")}),
+        )
 
     def record_action(
         self,
@@ -312,6 +363,11 @@ class BrowserAdapter:
                 )
             async with self._browser.session(task_id) as session:
                 if target:
+                    # Recorded like any other navigation: a report that lists no
+                    # actions reads as though the agent never went anywhere.
+                    result.record_action(
+                        "Opened the URL from the task", url=target
+                    )
                     await self._navigate(session, emitter, target, result)
                 elif not await self._start_from_search(session, emitter, prompt, result):
                     # No search possible (browser off): nothing to do here.
@@ -334,7 +390,30 @@ class BrowserAdapter:
                         f"Deciding step {step} of {limit}", _progress_for_step(step, limit)
                     )
                     observation = await self._observe(session, emitter)
-                    decision = await self._decide(prompt, observation, result, step, limit, last_error)
+                    try:
+                        decision = await self._decide(
+                            prompt, observation, result, step, limit, last_error
+                        )
+                    except AdapterError as exc:
+                        # One slow call is not a reason to throw away a run that has
+                        # already collected evidence. Count it as a fruitless step,
+                        # tell the model why, and let the stall guard decide.
+                        if exc.code != "model_timeout" or not exc.retryable:
+                            raise
+                        logger.info("step_model_timeout step=%s limit=%s", step, limit)
+                        await emitter.log(
+                            "The model took too long to answer that step.",
+                            detail="Retrying with a shorter question.",
+                        )
+                        last_error = (
+                            "Your previous answer did not arrive in time. Answer in the "
+                            "shortest form possible: one JSON object, no extra prose."
+                        )
+                        stalled_steps += 1
+                        if stalled_steps >= _STALL_STEP_LIMIT:
+                            result.summary = _stalled_summary(result, step)
+                            return result
+                        continue
                     last_error = None
 
                     if decision is None:
@@ -342,10 +421,15 @@ class BrowserAdapter:
                         result.summary = "The model stopped producing usable actions."
                         return result
 
-                    action = str(decision.get("action") or "").strip().lower()
+                    action = normalize_action(str(decision.get("action") or ""))
                     if action not in ACTIONS:
                         logger.info("ignoring_unsupported_action step=%s action=%r", step, action)
                         last_error = f"Unsupported action {action!r}. Choose one of: {', '.join(sorted(ACTIONS))}."
+                        # Still a step that produced nothing, so it counts towards the stall guard.
+                        stalled_steps += 1
+                        if stalled_steps >= _STALL_STEP_LIMIT:
+                            result.summary = _stalled_summary(result, step)
+                            return result
                         continue
 
                     before = result.evidence_count()
@@ -363,11 +447,12 @@ class BrowserAdapter:
                     if outcome.error:
                         last_error = outcome.error
 
-                    # A run that stops producing evidence is not making progress,
-                    # however many steps it has left. Ending it here is what turns a
-                    # stuck task into a completed one that reports what it found.
+                    # A run that stops producing evidence is not making progress, however many
+                    # steps it has left, and a refused action is not progress either: that is
+                    # precisely how a model asking for the same thing repeatedly used to spend the
+                    # whole task budget. Counting only successful steps let that loop run forever.
                     after = result.evidence_count()
-                    if after == before and not outcome.error:
+                    if after == before:
                         stalled_steps += 1
                     else:
                         stalled_steps = 0
@@ -400,6 +485,7 @@ class BrowserAdapter:
         """Capture the current page as text plus a frame, then describe it."""
         url, title = await session.current()
         text = await session.text(MAX_TEXT_CHARS)
+        headings = await session.headings()
         elements = await session.elements(MAX_ELEMENTS)
 
         data, width, height = await session.screenshot()
@@ -414,6 +500,13 @@ class BrowserAdapter:
             f"URL: {url or 'about:blank'}",
             f"TITLE: {title or '(none)'}",
         ]
+        if headings:
+            parts.append(
+                "<page_headings>\nCopy a heading from this list verbatim when asked for a "
+                "heading. Never merge a heading with the text around it.\n"
+                + "\n".join(headings)
+                + "\n</page_headings>"
+            )
         if text:
             parts.append("<page_content>\n" + text + "\n</page_content>")
         if elements:
@@ -555,7 +648,8 @@ class BrowserAdapter:
                 value = str(decision.get("value") or "")
                 if not value.strip():
                     return _Outcome(error="A finding needs a non-empty 'value'.")
-                if not result.add_finding(label, value):
+                url, _ = await session.current()
+                if not result.add_finding(label, value, source_url=url):
                     # Saying so is more useful than silently ignoring the model,
                     # which is what made it repeat the same finding forever.
                     return _Outcome(
@@ -564,7 +658,6 @@ class BrowserAdapter:
                             'or use "done" if the task is answered.'
                         )
                     )
-                url, _ = await session.current()
                 await emitter.collected(label, value, url=url)
                 return _Outcome()
 

@@ -69,7 +69,7 @@ class Orchestrator:
         findings_result, engine_note = await self._execute(context)
 
         context.check_cancelled()
-        await context.update(current_activity="Writing the report", progress=90)
+        await context.update(current_activity="Writing the report", progress=0.9)
         await context.emit(
             EventType.LOG,
             "Composing the report from the collected evidence.",
@@ -100,7 +100,7 @@ class Orchestrator:
         await context.transition(TaskStatus.STARTING)
         await context.update(
             current_activity="Preparing the run",
-            progress=5,
+            progress=0.05,
             engine=self._settings.browser_engine,
         )
         await context.emit(

@@ -11,14 +11,17 @@
     "test": "node --import ./tests/register.mjs --test \"tests/*.test.ts\""
   },
   "dependencies": {
+    "@vercel/functions": "^3.9.11",
     "next": "16.3.8",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "ws": "^8.22.0"
   },
   "devDependencies": {
     "@types/node": "^24.3.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
+    "@types/ws": "^8.18.2",
     "typescript": "^5.9.2"
   }
 }

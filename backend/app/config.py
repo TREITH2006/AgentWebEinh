@@ -96,6 +96,16 @@ class Settings(BaseSettings):
     ollama_num_ctx: int = 8_192
     ollama_temperature: float = 0.1
     ollama_keep_alive: str = "10m"
+    #: Lower bound applied to every ``num_predict`` budget.
+    #:
+    #: Reasoning models (``qwen3-*``) emit a ``thinking`` block *before* the answer,
+    #: and ``num_predict`` caps thinking and content together. A budget sized for the
+    #: answer alone is therefore fully consumed by reasoning, Ollama returns
+    #: ``done_reason="length"`` with an empty ``content``, and the adapter raises
+    #: ``ollama_empty`` — a hard failure that looks like an unreachable model.
+    #: Ollama's ``think=false`` does not suppress this for the VL build, so the
+    #: floor is the reliable fix. Raise it for models that deliberate at length.
+    ollama_num_predict_floor: int = 2_048
 
     # ------------------------------------------------------------- browser --
     browser_enabled: bool = True

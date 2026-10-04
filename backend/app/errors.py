@@ -178,5 +178,6 @@ def register_exception_handlers(app: FastAPI) -> None:
                 status.HTTP_500_INTERNAL_SERVER_ERROR,
                 "internal_error",
                 "The service reported an internal error.",
+                {},
             ),
         )

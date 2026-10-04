@@ -67,13 +67,18 @@ def test_the_example_parses_and_agrees_with_the_code_defaults(
     Loading the file through ``Settings`` itself checks the values, their types
     and their syntax at once. String-comparing the file would miss a wrong type
     or an unquoted value that only fails at startup.
+
+    ``_env_file=None`` is load-bearing: a developer's local ``backend/.env`` is
+    exactly the file this test must *not* read. Letting it in compares the
+    example against one machine's overrides instead of the code defaults, so the
+    test fails for anyone who set a port or a public base URL locally.
     """
     for name in list(os.environ):
         if name.startswith(ENV_PREFIX):
             monkeypatch.delenv(name, raising=False)
 
     from_example = Settings(_env_file=EXAMPLE)  # type: ignore[call-arg]
-    defaults = Settings()
+    defaults = Settings(_env_file=None)  # type: ignore[call-arg]
 
     mismatches = [
         f"{field}: example={getattr(from_example, field)!r} "

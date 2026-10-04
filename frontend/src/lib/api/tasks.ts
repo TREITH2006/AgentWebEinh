@@ -4,10 +4,10 @@
    ============================================================================= */
 
 import { request, ApiError } from "./client";
+import { apiUrl } from "../config";
 import { API_ENDPOINTS } from "./endpoints";
 import {
   normalizeEvent,
-  normalizeFramesUrl,
   normalizeTask,
   normalizeTaskList,
 } from "./normalize";
@@ -124,14 +124,28 @@ export async function fetchTaskFrames(
   signal?: AbortSignal,
 ): Promise<{ framesUrl: string | null; snapshotUrl: string | null }> {
   try {
-    const dto = await request<TaskFramesDto>(API_ENDPOINTS.taskFrames(taskId), { signal, timeoutMs: 8_000 });
-    return normalizeFramesUrl(dto);
+    // Probe the discovery route purely to learn whether this backend serves
+    // frames at all; a 404/405 means "unsupported" and the viewer shows no stream.
+    await request<TaskFramesDto>(API_ENDPOINTS.taskFrames(taskId), { signal, timeoutMs: 8_000 });
   } catch (error) {
     if (error instanceof ApiError && (error.status === 404 || error.status === 405)) {
       return { framesUrl: null, snapshotUrl: null };
     }
     throw error;
   }
+
+  // The URLs are built here rather than taken from the discovery response.
+  // The backend answers those with absolute URLs rooted at its public base
+  // (`AWE_PUBLIC_BASE_URL`, the Tailscale Funnel host), which would send the
+  // browser straight off-origin: it bypasses the Next.js proxy entirely, leaks
+  // the backend's public hostname to every visitor, and makes local development
+  // fail whenever the funnel is down. Deriving them from `taskId` through
+  // `apiUrl` keeps the browser same-origin and the proxy the single mapping
+  // point, locally and in production alike.
+  return {
+    framesUrl: apiUrl(API_ENDPOINTS.taskFrameStream(taskId)),
+    snapshotUrl: apiUrl(API_ENDPOINTS.taskFrameSnapshot(taskId)),
+  };
 }
 
 export type { TaskDto };

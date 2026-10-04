@@ -11,7 +11,10 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import os
 import re
+import shutil
+import subprocess
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
@@ -90,6 +93,34 @@ def redact(text: str, *, limit: int = 2_000) -> str:
     return scrubbed
 
 
+def _windows_batch_argv(argv: list[str]) -> list[str] | None:
+    """Wrap ``argv`` in ``cmd.exe`` when the target is a Windows batch script.
+
+    npm installs CLIs as ``<name>.CMD`` shims, and ``CreateProcess`` cannot
+    execute a batch file directly — ``asyncio.create_subprocess_exec`` raises
+    ``FileNotFoundError`` for it even though ``shutil.which`` resolves it, which
+    is why ``openclaw`` reported "Command not found" while ``cli_available`` was
+    true. ``cmd.exe`` is the only supported way to run one.
+
+    Returns ``None`` when ``argv[0]`` is a real executable, so the shell-free
+    guarantee still holds everywhere else: ``cmd.exe`` is only ever handed the
+    resolved script path plus arguments escaped by ``list2cmdline``, never
+    concatenated model- or page-derived text.
+    """
+    if os.name != "nt" or not argv:
+        return None
+
+    resolved = shutil.which(argv[0])
+    if not resolved:
+        return None
+
+    if not resolved.lower().endswith((".cmd", ".bat")):
+        return None
+
+    command_line = subprocess.list2cmdline([resolved, *argv[1:]])
+    return ["cmd.exe", "/d", "/s", "/c", command_line]
+
+
 async def run_command(
     argv: list[str],
     *,
@@ -100,13 +131,16 @@ async def run_command(
     """Run a subprocess with a hard deadline and captured output.
 
     Never uses a shell, so model- or page-derived text can never be interpreted
-    as a command. On timeout the whole process tree is killed rather than left
-    running in the background.
+    as a command. On Windows a ``.cmd``/``.bat`` shim is the single exception,
+    since the OS cannot start one any other way — see :func:`_windows_batch_argv`.
+    On timeout the whole process tree is killed rather than left running in the
+    background.
     """
     logger.debug("adapter_command argv=%s", argv[:1])
+    spawn_argv = _windows_batch_argv(argv) or argv
     try:
         process = await asyncio.create_subprocess_exec(
-            *argv,
+            *spawn_argv,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=cwd,

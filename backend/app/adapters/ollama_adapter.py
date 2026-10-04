@@ -117,6 +117,11 @@ class OllamaAdapter:
             # Vision models take base64 images; kept opt-in so text-only runs stay cheap.
             messages[1]["images"] = images
 
+        # ``num_predict`` bounds reasoning *and* content together, so a caller's
+        # budget is treated as the floor rather than the ceiling. See
+        # ``Settings.ollama_num_predict_floor``.
+        budget = max(num_predict or 0, self._settings.ollama_num_predict_floor)
+
         body: dict[str, Any] = {
             "model": self._settings.ollama_model,
             "messages": messages,
@@ -124,13 +129,53 @@ class OllamaAdapter:
             "options": {
                 "temperature": self._settings.ollama_temperature if temperature is None else temperature,
                 "num_ctx": self._settings.ollama_num_ctx,
-                **({"num_predict": num_predict} if num_predict else {}),
+                "num_predict": budget,
             },
             "keep_alive": self._settings.ollama_keep_alive,
         }
         if as_json:
             body["format"] = "json"
 
+        payload = await self._post_chat(body)
+
+        message = payload.get("message") or {}
+        content = message.get("content")
+        truncated = payload.get("done_reason") == "length"
+
+        # A reasoning model spends an unpredictable number of tokens on its
+        # ``thinking`` block before answering, and that block draws from the same
+        # budget as the answer. When the budget runs out mid-thought Ollama reports
+        # ``done_reason="length"`` and hands back an empty or half-written
+        # ``content``, which would otherwise surface as a hard ``ollama_empty`` /
+        # ``ollama_bad_schema`` failure that looks like an unreachable model.
+        # Retrying once with headroom is the reliable remedy; a second truncation
+        # still raises, so a genuinely starved budget is not masked.
+        if truncated or not isinstance(content, str) or not content.strip():
+            logger.info(
+                "ollama_truncated_retry done_reason=%s content_len=%d budget=%d",
+                payload.get("done_reason"),
+                len(content) if isinstance(content, str) else 0,
+                budget,
+            )
+            body["options"] = {**body["options"], "num_predict": budget * 2}
+            payload = await self._post_chat(body)
+            message = payload.get("message") or {}
+            content = message.get("content")
+            if payload.get("done_reason") == "length" and isinstance(content, str) and not content.strip():
+                raise AdapterError(
+                    "Ollama returned an empty completion.", code="ollama_empty", retryable=True
+                )
+
+        if not isinstance(content, str) or not content.strip():
+            raise AdapterError("Ollama returned an empty completion.", code="ollama_empty")
+        return content
+
+    async def _post_chat(self, body: dict[str, Any]) -> dict[str, Any]:
+        """POST to ``/api/chat`` and return the decoded payload.
+
+        Transport, HTTP and decode failures are normalised here so :meth:`chat`
+        only has to reason about the shape of a successful response.
+        """
         try:
             response = await self._client.post("/api/chat", json=body)
         except httpx.HTTPError as exc:
@@ -149,15 +194,9 @@ class OllamaAdapter:
             )
 
         try:
-            payload = response.json()
+            return response.json()
         except ValueError as exc:
             raise AdapterError("Ollama returned a non-JSON response.", code="ollama_bad_json") from exc
-
-        message = payload.get("message") or {}
-        content = message.get("content")
-        if not isinstance(content, str) or not content.strip():
-            raise AdapterError("Ollama returned an empty completion.", code="ollama_empty")
-        return content
 
     async def chat_json(self, system: str, user: str, **kwargs: Any) -> dict[str, Any]:
         """Completion parsed as a JSON object.

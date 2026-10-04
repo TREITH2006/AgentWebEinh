@@ -39,6 +39,15 @@ export const API_ENDPOINTS = {
   /** Browser frames: `{ framesUrl?, snapshotUrl?, capturedAt? }`. */
   taskFrames: (taskId: string) => `${PREFIX}/api/tasks/${encodeURIComponent(taskId)}/frames`,
 
+  /**
+   * Long-lived MJPEG stream. Long-polling before the first frame, so a single
+   * `<img>` stays valid for the whole run.
+   */
+  taskFrameStream: (taskId: string) => `${PREFIX}/api/tasks/${encodeURIComponent(taskId)}/stream.mjpeg`,
+
+  /** Newest single JPEG. 404 until the browser produces its first frame. */
+  taskFrameSnapshot: (taskId: string) => `${PREFIX}/api/tasks/${encodeURIComponent(taskId)}/frame.jpg`,
+
   stats: `${PREFIX}/api/stats`,
 } as const;
 

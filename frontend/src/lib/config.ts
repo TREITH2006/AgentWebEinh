@@ -38,8 +38,17 @@ export const API_CONFIG = {
   wsUrl,
   /** Hard timeout for REST calls, ms. */
   timeoutMs: Number(readEnv("NEXT_PUBLIC_API_TIMEOUT_MS") ?? 20_000),
-  /** Timeout for the availability probe that decides live vs demo, ms. */
-  probeTimeoutMs: Number(readEnv("NEXT_PUBLIC_API_PROBE_TIMEOUT_MS") ?? 2_500),
+  /**
+   * Timeout for the availability probe that decides live vs demo, ms.
+   *
+   * Must exceed the backend's worst-case `/api/status`. That endpoint runs real
+   * integration probes, one of which spawns a CLI that needs several seconds to
+   * start on Windows. A 2.5s budget aborted against a perfectly healthy backend
+   * and reported it as unreachable, which is the one outcome this probe exists to
+   * prevent. The backend caches probe results, so only the first call after a
+   * restart is slow; this budget covers that case rather than the steady state.
+   */
+  probeTimeoutMs: Number(readEnv("NEXT_PUBLIC_API_PROBE_TIMEOUT_MS") ?? 15_000),
   /** How often to re-check task status when the stream is unavailable, ms. */
   pollIntervalMs: Number(readEnv("NEXT_PUBLIC_POLL_INTERVAL_MS") ?? 2_500),
   /** Max characters accepted in the task composer. */

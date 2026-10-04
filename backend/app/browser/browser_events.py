@@ -30,6 +30,16 @@ class BrowserEventEmitter:
     async def log(self, message: str, *, detail: str | None = None) -> None:
         await self._ctx.emit(EventType.LOG, message, detail=detail)
 
+    async def progress(self, activity: str, progress: float) -> None:
+        """Advance the task's visible progress.
+
+        The snapshot is patched without an event on purpose: this fires once per
+        agent step, and an event per step would bury the events that actually
+        describe what the agent did. The running snapshot the frontend already
+        receives carries the new values, so the UI still moves.
+        """
+        await self._ctx.update(current_activity=activity[:200], progress=progress)
+
     async def opened(self, url: str | None, title: str | None) -> None:
         await self._ctx.update(current_url=url, current_title=title)
         await self._ctx.emit(EventType.BROWSER_OPENED, f"Opened {title or url or 'page'}",

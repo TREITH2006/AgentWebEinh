@@ -90,8 +90,11 @@ test("classifies each failure mode distinctly", () => {
     [404, { detail: "Not Found" }, "wrong-backend"],
     [401, { detail: "Unauthorized" }, "wrong-backend"],
     [403, { detail: "Forbidden" }, "wrong-backend"],
-    [502, "Bad Gateway", "backend-unavailable"],
-    [503, "Service Unavailable", "backend-unavailable"],
+    // Gateway-generated statuses name the proxy, not the backend. Collapsing them
+    // into "backend unavailable" points the operator at the wrong process.
+    [502, "Bad Gateway", "proxy-error"],
+    [503, "Service Unavailable", "proxy-error"],
+    [504, "Gateway Timeout", "proxy-error"],
     [500, "Internal Server Error", "backend-unavailable"],
   ];
 
@@ -100,6 +103,25 @@ test("classifies each failure mode distinctly", () => {
     assert.equal(result.ok, false, `HTTP ${status} must not be accepted`);
     assert.equal(result.ok === false && result.kind, expected, `HTTP ${status}`);
   }
+});
+
+test("reports a slow backend as a timeout, not as a dead frontend", () => {
+  // The regression this guards: the probe deadline elapsed against a perfectly
+  // healthy backend, and the abort was reported as "this app's server did not
+  // answer" — sending the operator to restart a Next.js server that was fine.
+  const stalled: FetchLike = (_input, init) =>
+    new Promise((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => {
+        reject(new DOMException("The operation was aborted.", "AbortError"));
+      });
+    });
+
+  return probeBackend(stalled, 20).then((result) => {
+    assert.equal(result.ok, false);
+    assert.equal(result.ok === false && result.kind, "timeout");
+    assert.match(result.ok === false ? result.message : "", /deadline/i);
+    assert.doesNotMatch(result.ok === false ? result.message : "", /own server/i);
+  });
 });
 
 test("reports a dead frontend separately from a dead backend", () => {

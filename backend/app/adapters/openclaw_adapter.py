@@ -41,6 +41,11 @@ PROMPT_DIR = DATA_DIR / "openclaw"
 #: Keys that have carried the agent's reply text across OpenClaw versions.
 _REPLY_KEYS = ("result", "reply", "output", "text", "response", "content", "message")
 
+#: How far the envelope walker descends. Deep enough for
+#: ``result.payloads[].text``, shallow enough that a large nested blob of
+#: telemetry is not walked on every reply.
+_MAX_REPLY_DEPTH = 6
+
 
 class OpenClawAdapter:
     """Read-only client for a running OpenClaw gateway."""
@@ -167,31 +172,64 @@ def _extract_reply(raw: str) -> str:
             raise AdapterError("OpenClaw returned an empty response.", code="openclaw_empty")
         return text
 
-    value = _first_reply_value(payload)
-    if value is None:
+    texts = _collect_reply_texts(payload)
+    if not texts:
         # Nothing matched a known key: return the JSON so the orchestrator can
         # still show the operator something concrete instead of failing.
         return json.dumps(payload, ensure_ascii=False)
-    return value
+    return "\n".join(texts)
 
 
-def _first_reply_value(payload: dict[str, Any], depth: int = 0) -> str | None:
-    if depth > 4:
-        return None
+def _collect_reply_texts(payload: dict[str, Any], depth: int = 0) -> list[str]:
+    """Every reply-shaped string in the envelope, in document order.
+
+    ``openclaw agent --json`` returns the agent's actual words as
+    ``result.payloads[].text`` — an array of objects nested two levels down. A
+    walker that only descends into objects never reaches it, so extraction found
+    nothing and fell back to re-serialising the whole envelope. The report parser
+    then read that JSON as prose and split it on the first colon, which is how a
+    finding ended up labelled ``{"runId"`` and valued with the run id.
+
+    Arrays are therefore walked alongside objects, and each ``payloads`` entry
+    contributes its own text so a multi-message run reports all of it.
+    """
+    if depth > _MAX_REPLY_DEPTH:
+        return []
+
+    found: list[str] = []
+    visited: set[str] = set()
+
+    # Known reply keys first, so an explicit `text`/`result` wins over an
+    # incidental string that happens to sit deeper in the envelope.
     for key in _REPLY_KEYS:
-        candidate = payload.get(key)
-        if isinstance(candidate, str) and candidate.strip():
-            return candidate.strip()
-        if isinstance(candidate, dict):
-            nested = _first_reply_value(candidate, depth + 1)
-            if nested:
-                return nested
-    for value in payload.values():
-        if isinstance(value, dict):
-            nested = _first_reply_value(value, depth + 1)
-            if nested:
-                return nested
-    return None
+        if key not in payload:
+            continue
+        visited.add(key)
+        found.extend(_texts_from(payload[key], depth + 1))
+
+    for key, value in payload.items():
+        if key in visited:
+            continue
+        if isinstance(value, (dict, list)):
+            found.extend(_texts_from(value, depth + 1))
+
+    return found
+
+
+def _texts_from(value: Any, depth: int) -> list[str]:
+    """Reply strings held by one value: a string, an object, or an array."""
+    if depth > _MAX_REPLY_DEPTH:
+        return []
+    if isinstance(value, str):
+        return [value.strip()] if value.strip() else []
+    if isinstance(value, dict):
+        return _collect_reply_texts(value, depth)
+    if isinstance(value, list):
+        found: list[str] = []
+        for item in value:
+            found.extend(_texts_from(item, depth))
+        return found
+    return []
 
 
 __all__ = ["OpenClawAdapter"]

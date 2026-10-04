@@ -25,6 +25,23 @@ import styles from "./DemoModeBanner.module.css";
 
 const DISMISS_KEY = "agentwebeinh:demo-banner-dismissed";
 
+/**
+ * Headline per failure kind.
+ *
+ * "Live backend unavailable" was shown for every failure, which made a slow
+ * backend look dead and a gateway fault look like a backend fault. Each cause has
+ * a different fix -- wait, check the backend, or check the proxy -- so each gets
+ * its own headline.
+ */
+const ERROR_HEADLINES: Record<string, string> = {
+  "frontend-unavailable": "Frontend server unavailable",
+  timeout: "Backend request timed out",
+  "proxy-error": "Proxy error",
+  "backend-unavailable": "Backend unavailable",
+  "wrong-backend": "Wrong service on this address",
+  "endpoint-error": "Backend returned an error",
+};
+
 export function DemoModeBanner(): React.JSX.Element | null {
   const { isDemo, reason, status, connectionError, recheck } = useDataSource();
   const [dismissed, setDismissed] = useState(true);
@@ -41,12 +58,15 @@ export function DemoModeBanner(): React.JSX.Element | null {
 
   // An error is always shown; only the demo notice can be waved away.
   if (isError) {
+    const headline = connectionError
+      ? (ERROR_HEADLINES[connectionError.kind] ?? "Live backend unavailable")
+      : "Live backend unavailable";
     return (
-      <div className={styles.banner} data-status="error" role="alert">
+      <div className={styles.banner} data-status="error" data-error-kind={connectionError?.kind} role="alert">
         <div className={`bw-shell-wide ${styles.inner}`}>
           <span className={styles.tag} data-error="true">
             <AlertIcon size={11} />
-            Live backend unavailable
+            {headline}
           </span>
           <p className={styles.text}>
             {reason ?? "The AgentWebEinh API could not be verified."}
@@ -56,7 +76,9 @@ export function DemoModeBanner(): React.JSX.Element | null {
                 Checked <code>{connectionError.url}</code>
                 {connectionError.httpStatus > 0
                   ? ` — HTTP ${connectionError.httpStatus}`
-                  : " — no response"}
+                  : connectionError.kind === "timeout"
+                    ? " — no answer before the deadline"
+                    : " — no response"}
                 . No sample data is being substituted for live results.
               </span>
             ) : null}

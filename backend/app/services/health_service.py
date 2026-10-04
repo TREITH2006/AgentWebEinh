@@ -7,6 +7,17 @@ the whole UI would silently fall back to demo data.
 
 ``healthy`` therefore depends only on the two things that are genuinely
 required: the database answers a query, and the worker pool is running.
+
+Two further rules exist because a status document that lies is worse than no
+status document at all:
+
+* **Never report a healthy dependency as down because of our own deadline.** Each
+  probe gets its configured budget; a shared cap that overrode every adapter made
+  a working OpenClaw gateway report ``degraded`` on every request.
+* **Never let a slow dependency make the endpoint slow.** Probe results are cached
+  for :attr:`~app.config.Settings.status_cache_seconds`, so ``/api/status`` -- the
+  endpoint the frontend probes to decide it is talking to the real backend --
+  answers in milliseconds instead of paying the slowest CLI's start-up cost.
 """
 
 from __future__ import annotations
@@ -32,10 +43,38 @@ from ..utils.time import now_iso
 
 logger = logging.getLogger("agentwebeinh.health")
 
-#: Total budget for the whole status response. Probes run concurrently.
+#: Floor for any single integration probe. Keeps a pathological timeout from
+#: stalling the status response when nothing has configured a tighter budget.
 PROBE_BUDGET_SECONDS = 5.0
 
+#: Slack added on top of an adapter's own budget so the probe's real deadline
+#: fires first and reports its own, more specific, error.
+PROBE_GRACE_SECONDS = 2.0
+
+#: Backwards-compatible alias for the grace period.
+_PROBE_MARGIN_SECONDS = PROBE_GRACE_SECONDS
+
 _APP_VERSION = "1.0.0"
+
+
+class _IntegrationSnapshot:
+    """The integration probe outcome, cached between ``/api/status`` calls."""
+
+    __slots__ = ("ollama", "openclaw", "browser", "tinyfish", "expires_at")
+
+    def __init__(
+        self,
+        ollama: IntegrationHealth | None,
+        openclaw: IntegrationHealth | None,
+        browser: IntegrationHealth | None,
+        tinyfish: IntegrationHealth | None,
+        expires_at: float,
+    ) -> None:
+        self.ollama = ollama
+        self.openclaw = openclaw
+        self.browser = browser
+        self.tinyfish = tinyfish
+        self.expires_at = expires_at
 
 
 class HealthService:
@@ -62,16 +101,18 @@ class HealthService:
         self._tinyfish = tinyfish
         self._frames = frames
         self._started_monotonic = time.monotonic()
+        self._cache: _IntegrationSnapshot | None = None
+        self._probe_lock = asyncio.Lock()
 
     @property
     def uptime_seconds(self) -> float:
         return round(time.monotonic() - self._started_monotonic, 3)
 
     async def snapshot(self) -> StatusResponse:
-        """Probe everything concurrently under one deadline."""
-        database_component, probe_results = await asyncio.gather(
+        """Build the status document, reusing a recent probe where possible."""
+        database_component, integrations = await asyncio.gather(
             self._probe_database(),
-            self._probe_integrations(),
+            self._integration_snapshot(),
         )
 
         components: dict[str, ComponentStatusDto] = {
@@ -80,7 +121,11 @@ class HealthService:
         }
         notes: list[str] = []
 
-        ollama_health, openclaw_health, browser_health, tinyfish_health = probe_results
+        ollama_health = integrations.ollama
+        openclaw_health = integrations.openclaw
+        browser_health = integrations.browser
+        tinyfish_health = integrations.tinyfish
+
         for health in (ollama_health, openclaw_health, browser_health, tinyfish_health):
             if health is None:
                 continue
@@ -148,22 +193,58 @@ class HealthService:
             ),
         )
 
+    async def _integration_snapshot(self) -> _IntegrationSnapshot:
+        """Cached integration probes, re-run only once they have gone stale.
+
+        The frontend probes ``/api/status`` on every page load to decide whether it
+        is talking to the real backend, and one of those probes is a subprocess
+        that needs seconds to start on Windows. Without a cache every page load
+        paid that cost, overran the client's deadline, and reported a working
+        backend as unreachable -- which is exactly the failure the identity probe
+        exists to prevent.
+
+        The lock makes a burst of concurrent callers share one probe instead of
+        each spawning its own copy of the same subprocesses.
+        """
+        cached = self._cache
+        if cached is not None and time.monotonic() < cached.expires_at:
+            return cached
+
+        async with self._probe_lock:
+            # A caller that queued behind another may find the cache already fresh.
+            cached = self._cache
+            if cached is not None and time.monotonic() < cached.expires_at:
+                return cached
+
+            ollama, openclaw, browser, tinyfish = await self._probe_integrations()
+            ttl = max(self._settings.status_cache_seconds, 0.0)
+            snapshot = _IntegrationSnapshot(
+                ollama, openclaw, browser, tinyfish, expires_at=time.monotonic() + ttl
+            )
+            self._cache = snapshot
+            return snapshot
+
     async def _probe_integrations(
         self,
     ) -> tuple[IntegrationHealth | None, ...]:
         """Probe the optional integrations in parallel, with a hard budget.
 
-        A probe that overruns the budget returns ``None`` rather than delaying the
-        whole response: health must stay fast even when a dependency hangs.
+        A probe that overruns its budget returns ``degraded`` rather than delaying
+        the whole response: health must stay fast even when a dependency hangs.
         """
 
-        async def with_budget(coro: Any, label: str) -> IntegrationHealth | None:
+        async def with_budget(
+            coro: Any, label: str, budget: float = PROBE_BUDGET_SECONDS
+        ) -> IntegrationHealth | None:
             try:
-                return await asyncio.wait_for(coro, timeout=PROBE_BUDGET_SECONDS)
+                return await asyncio.wait_for(coro, timeout=budget)
             except TimeoutError:
-                logger.info("health_probe_timed_out name=%s", label)
+                logger.info("health_probe_timed_out name=%s budget=%s", label, budget)
                 return IntegrationHealth(
-                    label, "degraded", f"No response within {PROBE_BUDGET_SECONDS:.0f}s."
+                    label,
+                    "degraded",
+                    f"No response within {budget:.0f}s. That is this service's "
+                    f"deadline for the check, not a verdict on the integration.",
                 )
             except Exception as exc:  # noqa: BLE001
                 logger.warning("health_probe_failed name=%s error=%s", label, type(exc).__name__)
@@ -172,12 +253,33 @@ class HealthService:
         browser_health = self._browser_adapter_health()
         return tuple(
             await asyncio.gather(
-                with_budget(self._ollama.health(), "ollama"),
-                with_budget(self._openclaw.health(), "openclaw"),
+                with_budget(
+                    self._ollama.health(),
+                    "ollama",
+                    self._probe_budget(self._settings.ollama_health_timeout_seconds),
+                ),
+                with_budget(
+                    self._openclaw.health(),
+                    "openclaw",
+                    self._probe_budget(self._settings.openclaw_health_timeout_ms / 1000.0),
+                ),
                 with_budget(_immediate(browser_health), "browser"),
                 with_budget(self._tinyfish.health(), "tinyfish"),
             )
         )
+
+    def _probe_budget(self, configured_seconds: float) -> float:
+        """Outer deadline for one probe, derived from the adapter's own budget.
+
+        A single shared cap overrode every adapter with the same five seconds, which
+        is shorter than the OpenClaw Node CLI takes merely to start on this PC. The
+        result was a perfectly healthy gateway reported as ``degraded`` on every
+        request while its own probe was still running. The floor keeps a
+        too-tight configured timeout from producing the same false negative in the
+        other direction, and the grace period makes the adapter's deadline -- which
+        can name the command and its limit -- the one that actually fires.
+        """
+        return max(PROBE_BUDGET_SECONDS, configured_seconds + PROBE_GRACE_SECONDS)
 
     def _browser_adapter_health(self) -> IntegrationHealth:
         """Ask the browser adapter so the reported engine matches the configured one."""

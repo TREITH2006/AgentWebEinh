@@ -81,6 +81,7 @@ class Orchestrator:
             actions=findings_result.actions,
             pages=findings_result.pages_visited,
             engine_note=engine_note,
+            run_summary=findings_result.summary or None,
         )
 
         # Clear the live view before the terminal event so the frontend does not
@@ -224,8 +225,14 @@ class Orchestrator:
 
 #: Cap on findings parsed out of a single OpenClaw reply.
 _MAX_OPENCLAW_FINDINGS = 40
-#: Trailing ``(https://...)`` on a finding line becomes its source.
-_SOURCE_SUFFIX = re.compile(r"\s*[\(\[]\s*(https?://[^\)\]\s]+)\s*[\)\]]\s*$")
+#: Trailing ``(https://...)`` on a finding line becomes its source. The inner
+#: group is optional because agents habitually label the link
+#: (``(source url: https://...)``, ``[via https://...]``); leaving the label
+#: inside the finding value would print "Example Domain (source url: https://…)"
+#: in the report instead of the fact the task actually asked for.
+_SOURCE_SUFFIX = re.compile(
+    r"\s*[\(\[]\s*(?:[A-Za-z][A-Za-z ]{0,20}(?::|\s))?\s*(https?://[^\)\]\s]+)\s*[\)\]]\s*$"
+)
 
 
 def _ingest_openclaw_reply(result: BrowserRunResult, reply: str) -> bool:

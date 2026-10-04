@@ -28,7 +28,11 @@ import type { StatusResponseDto } from "@/types/api";
 export type BackendFailureKind =
   /** The request never completed: this frontend's own server is not serving. */
   | "frontend-unavailable"
-  /** The proxy could not reach the backend (refused, timed out, 5xx). */
+  /** The request exceeded its deadline. The backend may well be alive. */
+  | "timeout"
+  /** A gateway (the Next.js rewrite or its upstream) failed, not the backend. */
+  | "proxy-error"
+  /** The proxy could not reach the backend (refused, 5xx). */
   | "backend-unavailable"
   /** Something is listening, but it is not AgentWebEinh. */
   | "wrong-backend"
@@ -93,6 +97,13 @@ function describe(kind: BackendFailureKind, httpStatus: number, detail?: string)
   switch (kind) {
     case "frontend-unavailable":
       return "This app's own server did not answer. It may have stopped or still be starting.";
+    case "timeout":
+      // Deliberately not "unavailable". The probe gave up before the backend did,
+      // and reporting that as a dead backend sends the operator to restart a
+      // service that is running perfectly well.
+      return `The AgentWebEinh backend did not answer within the probe deadline${suffix}. It may be busy or blocked, but it is not known to be down.`;
+    case "proxy-error":
+      return `The proxy in front of the backend failed${suffix}. The request reached the gateway but never came back from the backend.`;
     case "backend-unavailable":
       return `The AgentWebEinh backend is not answering${suffix}.`;
     case "wrong-backend":
@@ -103,6 +114,15 @@ function describe(kind: BackendFailureKind, httpStatus: number, detail?: string)
       return `The AgentWebEinh API returned an error${suffix}.`;
   }
 }
+
+/**
+ * Statuses a gateway generates when it cannot get a clean answer from upstream.
+ *
+ * These are reported as a proxy fault rather than a backend fault because the
+ * distinction decides where the operator looks: the backend process, or the
+ * rewrite in `next.config.ts` and whatever it points at.
+ */
+const PROXY_ERROR_STATUSES = new Set([502, 503, 504]);
 
 /**
  * Classify a probe response.
@@ -134,6 +154,16 @@ export function classifyProbeResponse(
       kind: "wrong-backend",
       httpStatus,
       message: describe("wrong-backend", httpStatus),
+      url,
+    };
+  }
+
+  if (PROXY_ERROR_STATUSES.has(httpStatus)) {
+    return {
+      ok: false,
+      kind: "proxy-error",
+      httpStatus,
+      message: describe("proxy-error", httpStatus, `HTTP ${httpStatus}`),
       url,
     };
   }
@@ -174,7 +204,13 @@ export async function probeBackend(
   timeoutMs: number,
 ): Promise<BackendProbeResult> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  // Tracked explicitly: an aborted fetch looks identical whether it was our
+  // deadline or a dropped connection, and the two need different messages.
+  let expired = false;
+  const timer = setTimeout(() => {
+    expired = true;
+    controller.abort();
+  }, timeoutMs);
 
   let response: Response;
   try {
@@ -184,13 +220,14 @@ export async function probeBackend(
       cache: "no-store",
     });
   } catch {
-    // Same-origin request that never completed: this frontend's server is gone,
-    // which is a different problem from the backend being down.
+    // The backend is slow, heavy or unreachable within the deadline. This is not
+    // evidence that it is down, and it is certainly not evidence that this app's
+    // server is down -- the browser got a response from *something* either way.
     return {
       ok: false,
-      kind: "frontend-unavailable",
+      kind: expired ? "timeout" : "frontend-unavailable",
       httpStatus: 0,
-      message: describe("frontend-unavailable", 0),
+      message: describe(expired ? "timeout" : "frontend-unavailable", 0, `${timeoutMs}ms deadline`),
       url: STATUS_URL,
     };
   } finally {

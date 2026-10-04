@@ -62,8 +62,25 @@ class Settings(BaseSettings):
     # ------------------------------------------------------ task execution --
     max_concurrent_tasks: int = 2
     task_timeout_seconds: int = 900
-    step_timeout_seconds: int = 120
+    #: Budget for one model call inside the agent loop. Must exceed the real
+    #: latency of the configured local model: ``qwen3-vl:8b`` on CPU takes well
+    #: over two minutes to answer one action, so a tighter budget failed every run
+    #: with ``model_timeout`` before the model ever spoke.
+    step_timeout_seconds: int = 300
     max_orchestrator_steps: int = 30
+    #: How long a task may wait for the single shared browser before giving up.
+    #: Without a bound, a second concurrent task blocked inside the exclusivity
+    #: lock looked identical to a hung task: no events, no progress, no timeout.
+    browser_session_wait_seconds: int = 600
+    #: How long ``GET /api/status`` may reuse the previous integration probe
+    #: before re-running it.
+    #:
+    #: The OpenClaw health probe shells out to a Node CLI that needs ~5.5s to
+    #: start on Windows, so probing on every request made ``/api/status`` take
+    #: longer than the frontend's identity-probe deadline and the UI reported a
+    #: healthy backend as unreachable. Caching keeps the response fast while the
+    #: reported component states stay real, just a few seconds old.
+    status_cache_seconds: float = 15.0
     prompt_min_length: int = 1
     prompt_max_length: int = 2000
     history_default_limit: int = 25
@@ -75,7 +92,11 @@ class Settings(BaseSettings):
     openclaw_enabled: bool = True
     openclaw_cli: str = "openclaw"
     openclaw_gateway_url: str = "ws://127.0.0.1:18789"
-    openclaw_health_timeout_ms: int = 4_000
+    #: Budget for `openclaw health --json`. This covers the whole CLI process, not
+    #: just the gateway probe it performs: the Node CLI needs ~8s to start on this
+    #: PC while the probe itself answers in ~20ms, so the previous 4s budget
+    #: reported a healthy gateway as "down / exceeded 4s".
+    openclaw_health_timeout_ms: int = 20_000
     openclaw_agent_timeout_seconds: int = 180
     #: When true the orchestrator asks OpenClaw to lead the run. When OpenClaw is
     #: unavailable the run continues on the native Playwright + Ollama path.
@@ -197,6 +218,12 @@ class Settings(BaseSettings):
             raise ValueError("AWE_PROMPT_MAX_LENGTH must be >= AWE_PROMPT_MIN_LENGTH")
         if self.max_concurrent_tasks < 1:
             raise ValueError("AWE_MAX_CONCURRENT_TASKS must be >= 1")
+        if self.browser_session_wait_seconds < 1:
+            raise ValueError("AWE_BROWSER_SESSION_WAIT_SECONDS must be >= 1")
+        if self.step_timeout_seconds < 1:
+            raise ValueError("AWE_STEP_TIMEOUT_SECONDS must be >= 1")
+        if self.status_cache_seconds < 0:
+            raise ValueError("AWE_STATUS_CACHE_SECONDS must be >= 0")
         if not 1 <= self.history_default_limit <= self.history_max_limit:
             raise ValueError("history default limit must be within 1..history_max_limit")
         if self.browser_frame_interval_ms < 200:

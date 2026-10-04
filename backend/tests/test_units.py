@@ -8,14 +8,26 @@ that permits a task to run backwards.
 from __future__ import annotations
 
 import asyncio
+import json
 from unittest import mock
 
 import pytest
 
-from app.adapters.browser_adapter import BrowserRunResult
+from app.adapters.base import AdapterError, IntegrationHealth
+from app.adapters.browser_adapter import (
+    _PROGRESS_STARTED,
+    BrowserRunResult,
+    _looks_like_challenge,
+    _progress_for_step,
+    _url_from_prompt,
+)
+from app.adapters.openclaw_adapter import _extract_reply
 from app.browser.frame_manager import FrameManager
 from app.config import Settings, settings_override
 from app.core.orchestrator import _ingest_openclaw_reply
+from app.schemas.report import FindingDto
+from app.services.health_service import PROBE_BUDGET_SECONDS, HealthService
+from app.services.report_service import _fallback_summary
 from app.core.state_machine import (
     InvalidTransition,
     can_transition,
@@ -79,6 +91,144 @@ def test_empty_openclaw_reply_adds_nothing() -> None:
 
     assert _ingest_openclaw_reply(result, "   \n  \n") is False
     assert result.findings == []
+
+
+def test_openclaw_envelope_yields_the_answer_not_its_metadata() -> None:
+    """The CLI's answer lives in ``result.payloads[].text``.
+
+    A walker that only descends into objects never reaches an array, so extraction
+    found nothing and fell back to re-serialising the whole envelope. The report
+    parser then read that JSON as prose and split it on the first colon, which put
+    a finding labelled ``{"runId"`` in front of the user instead of the page title
+    they asked for.
+    """
+    envelope = {
+        "runId": "32674646-ad99-45eb-9506-04aa8b0489e5",
+        "status": "ok",
+        "summary": "completed",
+        "result": {
+            "payloads": [
+                {
+                    "text": (
+                        "Page title: AgentWebEinh Local Test "
+                        "(source url: http://127.0.0.1:8002)\n"
+                        "Main heading: Local Browser Test Passed "
+                        "(source url: http://127.0.0.1:8002)"
+                    ),
+                    "mediaUrl": None,
+                }
+            ],
+            "meta": {
+                "durationMs": 163_680,
+                "agentMeta": {
+                    "sessionFile": "agent:main:awe-task_01",
+                    "provider": "ollama",
+                    "model": "qwen3-vl:8b",
+                    "usage": {"input": 14_560, "output": 1_191},
+                },
+            },
+        },
+        "aborted": False,
+    }
+
+    reply = _extract_reply(json.dumps(envelope))
+
+    assert "AgentWebEinh Local Test" in reply
+    assert "Local Browser Test Passed" in reply
+    # Telemetry is not prose and must never reach the report.
+    for noise in ("runId", "qwen3-vl:8b", "agent:main:awe"):
+        assert noise not in reply, f"{noise!r} leaked into the extracted reply"
+
+
+def test_openclaw_multiple_payloads_are_all_reported() -> None:
+    envelope = {"result": {"payloads": [{"text": "First."}, {"text": "Second."}]}}
+
+    assert _extract_reply(json.dumps(envelope)) == "First.\nSecond."
+
+
+def test_openclaw_reply_extraction_still_accepts_legacy_shapes() -> None:
+    assert _extract_reply(json.dumps({"result": "plain"})) == "plain"
+    assert _extract_reply(json.dumps({"reply": {"text": "nested"}})) == "nested"
+    assert _extract_reply("bare text") == "bare text"
+
+    with pytest.raises(AdapterError):
+        _extract_reply("   ")
+
+
+def test_openclaw_findings_drop_the_source_url_annotation() -> None:
+    """``(source url: ...)`` is provenance, not part of the answer."""
+    result = BrowserRunResult()
+
+    structured = _ingest_openclaw_reply(
+        result,
+        "Page title: AgentWebEinh Local Test (source url: http://127.0.0.1:8002)\n"
+        "Main heading: Local Browser Test Passed (source url: http://127.0.0.1:8002)",
+    )
+
+    assert structured is True
+    assert [(f.label, f.value) for f in result.findings] == [
+        ("Page title", "AgentWebEinh Local Test"),
+        ("Main heading", "Local Browser Test Passed"),
+    ]
+    assert all(f.source_url == "http://127.0.0.1:8002" for f in result.findings)
+
+
+# ------------------------------------------------------------------ start url --
+
+
+def test_a_url_named_in_the_prompt_becomes_the_start_url() -> None:
+    """A prompt that names a URL is a navigation instruction, not a search."""
+    prompt = "Open http://127.0.0.1:8002 and report the page title and the main heading."
+
+    assert _url_from_prompt(prompt) == "http://127.0.0.1:8002"
+
+
+def test_a_trailing_sentence_full_stop_is_not_part_of_the_url() -> None:
+    assert _url_from_prompt("Check https://example.com/docs.") == "https://example.com/docs"
+
+
+def test_a_prompt_without_a_url_has_no_start_url() -> None:
+    assert _url_from_prompt("top 5 programming languages") is None
+
+
+def test_a_non_http_url_is_ignored() -> None:
+    """Only http(s) can be opened; anything else must not become a navigation."""
+    assert _url_from_prompt("open file:///c:/temp/notes.txt") is None
+
+
+def test_progress_advances_monotonically_and_stops_short_of_the_report() -> None:
+    values = [_progress_for_step(step, 30) for step in range(1, 31)]
+
+    assert values == sorted(values)
+    assert values[0] == _PROGRESS_STARTED
+    # The orchestrator owns 0.9 for report synthesis; the loop must not reach it.
+    assert values[-1] < 0.9
+
+
+def test_an_anti_bot_page_is_recognised_as_a_challenge() -> None:
+    challenge = (
+        "Unfortunately, bots use DuckDuckGo too. Please complete the following "
+        "challenge to confirm this search was made by a human."
+    )
+    assert _looks_like_challenge(challenge)
+    assert not _looks_like_challenge("Example Domain - 10 results")
+
+
+# --------------------------------------------------------------- run summary --
+
+
+def test_the_runs_own_conclusion_is_kept_when_no_findings_exist() -> None:
+    summary = _fallback_summary("Open http://127.0.0.1:8002", [], "Page title: AgentWebEinh Local Test")
+
+    assert summary == "Page title: AgentWebEinh Local Test"
+
+
+def test_findings_still_win_over_the_run_conclusion() -> None:
+    findings = [FindingDto(label="Page title", value="AgentWebEinh Local Test")]
+    summary = _fallback_summary("Open http://127.0.0.1:8002", findings, "something else")
+
+    assert "Page title" in summary
+    assert "something else" not in summary
 
 
 # ------------------------------------------------------------------ frame fan-out --
@@ -217,3 +367,99 @@ def test_ids_sort_by_creation_time() -> None:
         later = new_task_id()
 
     assert earlier < later
+
+# --------------------------------------------------------------- status probe --
+
+
+def test_probe_budget_never_undercuts_a_configured_timeout() -> None:
+    """A shared cap made a healthy OpenClaw gateway look broken on every probe.
+
+    The CLI needs seconds just to start on Windows, so a five-second outer budget
+    fired first and reported ``degraded`` while the adapter's own probe was still
+    running successfully.
+    """
+    service = _health_service_stub()
+
+    slow_cli = 20_000 / 1000.0
+    assert service._probe_budget(slow_cli) > slow_cli
+    # A too-tight configured value is floored rather than believed.
+    assert service._probe_budget(0.1) == PROBE_BUDGET_SECONDS
+
+
+def test_status_probe_results_are_cached_between_requests() -> None:
+    """``/api/status`` is the endpoint the frontend probes to identify the backend.
+
+    Re-running a subprocess probe on every call made the response slower than the
+    client's deadline, so a working backend was reported unreachable. The reported
+    component states stay real; they are simply reused for a few seconds.
+    """
+    service = _health_service_stub()
+    calls = 0
+
+    async def counting_probe() -> IntegrationHealth:
+        nonlocal calls
+        calls += 1
+        return IntegrationHealth("openclaw", "up", "Gateway reachable.")
+
+    service._openclaw = mock.Mock(health=counting_probe)
+    service._ollama = mock.Mock(
+        health=_immediate_health("ollama", "up", "Ollama ready.")
+    )
+
+    first = asyncio.run(service._integration_snapshot())
+    second = asyncio.run(service._integration_snapshot())
+
+    assert calls == 1, "a fresh probe ran on a cached response"
+    assert first.openclaw is second.openclaw
+    assert second.openclaw is not None and second.openclaw.state == "up"
+
+
+async def test_concurrent_status_probes_share_one_run() -> None:
+    """A burst of page loads must not each spawn the same subprocesses."""
+    service = _health_service_stub()
+    started = 0
+
+    async def slow_probe() -> IntegrationHealth:
+        nonlocal started
+        started += 1
+        await asyncio.sleep(0.01)
+        return IntegrationHealth("openclaw", "up", "Gateway reachable.")
+
+    service._openclaw = mock.Mock(health=slow_probe)
+    service._ollama = mock.Mock(
+        health=_immediate_health("ollama", "up", "Ollama ready.")
+    )
+
+    results = await asyncio.gather(*(service._integration_snapshot() for _ in range(5)))
+
+    assert started == 1
+    assert len(results) == 5
+
+
+def _immediate_health(name: str, state: str, detail: str):
+    async def probe() -> IntegrationHealth:
+        return IntegrationHealth(name, state, detail)
+
+    return probe
+
+
+def _health_service_stub():
+    """A HealthService with every collaborator replaced by a trivial double.
+
+    The browser is disabled rather than mocked: the real health service builds a
+    ``BrowserAdapter`` over the manager itself, so a mock here would have to
+    reproduce ``BrowserManager.probe()``'s exact keys to be useful.
+    """
+    from app.browser.browser_manager import BrowserManager
+
+    settings = settings_override(status_cache_seconds=30.0, browser_enabled=False)
+    return HealthService(
+        settings=settings,
+        database=mock.Mock(),
+        task_manager=mock.Mock(ready=True, inflight_count=0, queued_count=0),
+        ollama=mock.Mock(health=_immediate_health("ollama", "up", "Ollama ready.")),
+        openclaw=mock.Mock(health=_immediate_health("openclaw", "up", "Gateway reachable.")),
+        browser=BrowserManager(settings),
+        tinyfish=mock.Mock(health=_immediate_health("tinyfish", "disabled", "off.")),
+        frames=mock.Mock(),
+    )

@@ -63,6 +63,7 @@ class ReportService:
         actions: list[TaskActionDto],
         pages: list[dict[str, str | None]],
         engine_note: str | None = None,
+        run_summary: str | None = None,
     ) -> TaskReportDto:
         """Synthesise a report, falling back to raw evidence if the model fails."""
         sources = _sources(pages)
@@ -74,7 +75,7 @@ class ReportService:
         try:
             synthesis = await self._ollama.chat_json(
                 SYNTHESIS_SYSTEM_PROMPT,
-                _evidence_prompt(prompt, findings, actions, pages, engine_note),
+                _evidence_prompt(prompt, findings, actions, pages, engine_note, run_summary),
                 num_predict=800,
             )
             summary = str(synthesis.get("summary") or "").strip()
@@ -87,14 +88,14 @@ class ReportService:
         except AdapterError as exc:
             # A failed summary must not lose the evidence that was already gathered.
             logger.warning("report_synthesis_failed error=%s", type(exc).__name__)
-            summary = _fallback_summary(prompt, findings)
+            summary = _fallback_summary(prompt, findings, run_summary)
             limitations.append(
                 "The narrative summary could not be generated, so this report lists "
                 "the raw collected findings."
             )
 
         if not summary:
-            summary = _fallback_summary(prompt, refined)
+            summary = _fallback_summary(prompt, refined, run_summary)
         if not refined and not limitations:
             limitations.append("No findings were collected for this task.")
         if engine_note:
@@ -144,6 +145,7 @@ def _evidence_prompt(
     actions: list[TaskActionDto],
     pages: list[dict[str, str | None]],
     engine_note: str | None,
+    run_summary: str | None = None,
 ) -> str:
     lines = [f"TASK:\n{prompt}"]
 
@@ -178,6 +180,9 @@ def _evidence_prompt(
 
     if engine_note:
         lines.append(f"\nRUN NOTE:\n{engine_note}")
+
+    if run_summary:
+        lines.append(f"\nRUN CONCLUSION:\n{run_summary}")
 
     return redact("\n".join(lines), limit=12_000)
 
@@ -233,8 +238,14 @@ def _merge_findings(
     return merged
 
 
-def _fallback_summary(prompt: str, findings: list[FindingDto]) -> str:
+def _fallback_summary(
+    prompt: str, findings: list[FindingDto], run_summary: str | None = None
+) -> str:
     if not findings:
+        # The agent's own conclusion is real evidence about the run, so it is a
+        # better answer than "nothing was collected".
+        if run_summary:
+            return run_summary.strip()[:2_000]
         return f"No findings were collected while working on: {prompt.strip()[:200]}"
     labels = ", ".join((item.label or "finding") for item in findings[:5])
     return f"Collected {len(findings)} finding(s) for: {prompt.strip()[:200]} ({labels})."

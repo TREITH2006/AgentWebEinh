@@ -33,6 +33,14 @@ from ..config import Settings
 logger = logging.getLogger("agentwebeinh.browser")
 
 
+class BrowserBusyError(RuntimeError):
+    """The single shared browser could not be acquired within the wait budget.
+
+    Raised instead of blocking forever so the caller can fail the task with an
+    honest reason rather than leaving it apparently running forever.
+    """
+
+
 def _browser_cache_dir() -> Path:
     """Return Playwright's browser download cache for this platform."""
     if sys.platform == "win32":
@@ -362,8 +370,24 @@ class BrowserManager:
 
     @contextlib.asynccontextmanager
     async def session(self, task_id: str) -> AsyncIterator[BrowserSession]:
-        """Yield an exclusive browser session, guaranteed to be cleaned up."""
-        await self._exclusive.acquire()
+        """Yield an exclusive browser session, guaranteed to be cleaned up.
+
+        The wait for the shared browser is bounded. An unbounded wait produced a
+        task that reported itself as running with no progress and no failure long
+        after anyone would believe it was still working.
+        """
+        try:
+            await asyncio.wait_for(
+                self._exclusive.acquire(),
+                timeout=self._settings.browser_session_wait_seconds,
+            )
+        except TimeoutError:
+            holder = next(iter(self._active), "another task")
+            logger.warning("browser_session_wait_timed_out task_id=%s holder=%s", task_id, holder)
+            raise BrowserBusyError(
+                f"The browser was still busy with {holder} after "
+                f"{self._settings.browser_session_wait_seconds}s."
+            ) from None
 
         browser: Any = None
         context: Any = None
@@ -422,6 +446,7 @@ class BrowserManager:
 __all__ = [
     "MAX_ELEMENTS",
     "MAX_TEXT_CHARS",
+    "BrowserBusyError",
     "BrowserManager",
     "BrowserSession",
     "BrowserUnavailable",

@@ -41,7 +41,9 @@ screenshots/
 Thumbs.db
 
 # ----------------------------------------------------------------- Logs ----
+# `.env*` is deliberately NOT repeated here. Git applies the last matching rule,
+# so a second `.env*` further down this file silently overrode the `!.env.example`
+# negation above and made every example file untrackable in a fresh clone.
 *.log
 .vercel
-.env*
 .aider*

@@ -1,16 +1,24 @@
 /* =============================================================================
    BrowserViewport
    -----------------------------------------------------------------------------
-   The live browser surface. Three honest states, and nothing else:
+The live browser surface. Four honest states, and nothing else:
 
      1. A real frame arrives from the backend (`framesUrl` / `snapshotUrl`) and is
         rendered as an image. A freshness indicator shows how old it is.
-     2. The backend has no frame route: a labelled placeholder explains what will
-        appear here and still shows the page the agent *reported* it was on.
-     3. Demo mode: explicitly marked as simulated, with no image at all.
+     2. The backend has a frame feed but the agent has not screenshotted yet:
+        a labelled placeholder says the browser view is on its way.
+     3. The task finished, so the orchestrator released the frame store: the
+        report is the result, and the placeholder says the live view closed.
+     4. The backend has no frame route at all: a labelled placeholder explains
+        what will appear here and still shows the page the agent *reported* it
+        was on. Demo mode is explicitly marked as simulated, with no image.
 
-   The container has a fixed aspect ratio so switching between these states, or
-   receiving frames of any resolution, never reflows the page.
+    States 2 and 3 exist because the snapshot route answers 404 both before the
+    first frame and after the task settles. Treating either as a transport
+    failure made every successful run end with a false crash notice.
+
+    The container has a fixed aspect ratio so switching between these states, or
+    receiving frames of any resolution, never reflows the page.
    ============================================================================= */
 
 "use client";
@@ -20,6 +28,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useDataSource } from "@/lib/data-source";
 import { withCacheBuster } from "@/lib/api/normalize";
 import type { BrowserFrame, TaskRecord, TaskStatus } from "@/types/domain";
+import { isActiveStatus } from "@/types/domain";
+import {
+  frameBadgeLabel,
+  framePlaceholderCopy,
+  frameSurfaceState,
+  isFrameStreamFailure,
+} from "@/lib/frames";
 import { formatDuration, hostnameOf } from "@/lib/utils/format";
 import { Badge } from "@/components/ui/StatusBadge";
 import { GlobeIcon, MousePointerIcon } from "@/components/ui/icons";
@@ -117,25 +132,37 @@ export function BrowserViewport({ task, taskId, running }: BrowserViewportProps)
     return () => clearInterval(timer);
   }, [frame?.kind]);
 
+  const status: TaskStatus = task?.status ?? "ready";
+  const hasImage = frame?.kind === "image";
+  const runIsLive = running || isActiveStatus(status);
+
   const handleImageLoad = useCallback(() => {
     setSawFrame(true);
     setFrameError(null);
   }, []);
 
   const handleImageError = useCallback(() => {
-    // Before the first frame exists the snapshot route answers 404 on purpose.
-    // Reporting that as a dead stream told the user their browser had crashed
-    // while the agent was still working towards its first screenshot.
-    if (!sawFrame) return;
+    // Both 404 cases are expected; only a feed that dies mid-run is worth
+    // reporting. See lib/frames for why each one is ordinary.
+    if (!isFrameStreamFailure({ sawFrame, runIsLive })) return;
     // Keep the last good frame on screen: the freshness badge already goes
     // "stale" after 5s, and blanking the image loses context for no gain.
     setFrameError("The frame stream stopped delivering images.");
-  }, [sawFrame]);
+  }, [runIsLive, sawFrame]);
 
-  const status: TaskStatus = task?.status ?? "ready";
-  const hasImage = frame?.kind === "image";
-  /* The backend advertised a frame feed but has not decoded a frame yet. */
-  const awaitingFirstFrame = !isDemo && !hasImage && !sawFrame && Boolean(frameUrls.snapshotUrl);
+  const surface = frameSurfaceState({
+    isDemo,
+    hasImage,
+    sawFrame,
+    runIsLive,
+    hasFeed: Boolean(frameUrls.snapshotUrl),
+    loadFailed: frameError !== null,
+  });
+  const awaitingFirstFrame = surface === "waiting";
+  const liveViewClosed = surface === "closed";
+  const placeholder = framePlaceholderCopy(surface);
+  const badge = frameBadgeLabel(surface);
+
   const frameAge = frame?.kind === "image" ? Math.max(0, now - Date.parse(frame.at)) : null;
   const stale = typeof frameAge === "number" && frameAge > 5_000;
 
@@ -151,10 +178,8 @@ export function BrowserViewport({ task, taskId, running }: BrowserViewportProps)
               {stale ? "Frame stale" : "Live frame"} · {formatDuration(frameAge)}
             </Badge>
           ) : null}
-          {!hasImage && !isDemo ? (
-            <Badge tone={awaitingFirstFrame ? "idle" : "warning"}>
-              {awaitingFirstFrame ? "Starting browser" : "No stream"}
-            </Badge>
+          {!hasImage && badge ? (
+            <Badge tone={awaitingFirstFrame || liveViewClosed ? "idle" : "warning"}>{badge}</Badge>
           ) : null}
           {isDemo ? <Badge tone="warning">Simulated</Badge> : null}
         </div>
@@ -181,33 +206,12 @@ export function BrowserViewport({ task, taskId, running }: BrowserViewportProps)
         ) : null}
 
         {!hasImage ? (
-          <div className={styles.placeholder} data-variant={isDemo ? "demo" : "none"}>
-            {isDemo ? (
-              <>
-                <span className={styles.placeholderIcon}>
-                  <MousePointerIcon size={22} />
-                </span>
-                <p className={styles.placeholderTitle}>Simulated session</p>
-                <p className={styles.placeholderBody}>
-                  Demo mode scripts the event stream but never opens a real browser, so there is no screen to show.
-                  Connect the backend to receive live frames here.
-                </p>
-              </>
-            ) : (
-              <>
-                <span className={styles.placeholderIcon}>
-                  <MousePointerIcon size={22} />
-                </span>
-                <p className={styles.placeholderTitle}>
-                  {awaitingFirstFrame ? "Waiting for the first frame" : "No live browser stream"}
-                </p>
-                <p className={styles.placeholderBody}>
-                  {awaitingFirstFrame
-                    ? "This task is queued behind another one, or the agent has not opened a page yet. The browser view appears the moment the first screenshot is captured."
-                    : "This backend does not expose a frame feed yet. The agent still reports each page it opens below, so you can follow its progress without the visual."}
-                </p>
-              </>
-            )}
+          <div className={styles.placeholder} data-variant={surface === "demo" ? "demo" : "none"}>
+            <span className={styles.placeholderIcon}>
+              <MousePointerIcon size={22} />
+            </span>
+            <p className={styles.placeholderTitle}>{placeholder.title}</p>
+            <p className={styles.placeholderBody}>{placeholder.body}</p>
           </div>
         ) : null}
 

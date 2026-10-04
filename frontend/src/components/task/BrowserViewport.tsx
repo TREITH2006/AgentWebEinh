@@ -42,6 +42,11 @@ export function BrowserViewport({ task, taskId, running }: BrowserViewportProps)
     snapshotUrl: null,
   });
   const [frameError, setFrameError] = useState<string | null>(null);
+  /* True once an image has actually decoded. The backend answers the snapshot
+     route with 404 until the agent's first screenshot exists, and that is not a
+     broken stream -- it is a task that has not reached the browser yet. Only a
+     failure *after* a frame was decoded means the stream really died. */
+  const [sawFrame, setSawFrame] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const probing = useRef<string | null>(null);
 
@@ -50,10 +55,13 @@ export function BrowserViewport({ task, taskId, running }: BrowserViewportProps)
     if (isDemo || !taskId) {
       setFrameUrls({ framesUrl: null, snapshotUrl: null });
       setFrame(null);
+      setSawFrame(false);
       return;
     }
     if (probing.current === taskId) return;
     probing.current = taskId;
+    // A different task starts with no frame of its own.
+    setSawFrame(false);
 
     const controller = new AbortController();
     void service.getTaskFrames(taskId, controller.signal).then(
@@ -109,13 +117,25 @@ export function BrowserViewport({ task, taskId, running }: BrowserViewportProps)
     return () => clearInterval(timer);
   }, [frame?.kind]);
 
-  const handleImageError = useCallback(() => {
-    setFrameError("The frame stream stopped delivering images.");
-    setFrame(null);
+  const handleImageLoad = useCallback(() => {
+    setSawFrame(true);
+    setFrameError(null);
   }, []);
+
+  const handleImageError = useCallback(() => {
+    // Before the first frame exists the snapshot route answers 404 on purpose.
+    // Reporting that as a dead stream told the user their browser had crashed
+    // while the agent was still working towards its first screenshot.
+    if (!sawFrame) return;
+    // Keep the last good frame on screen: the freshness badge already goes
+    // "stale" after 5s, and blanking the image loses context for no gain.
+    setFrameError("The frame stream stopped delivering images.");
+  }, [sawFrame]);
 
   const status: TaskStatus = task?.status ?? "ready";
   const hasImage = frame?.kind === "image";
+  /* The backend advertised a frame feed but has not decoded a frame yet. */
+  const awaitingFirstFrame = !isDemo && !hasImage && !sawFrame && Boolean(frameUrls.snapshotUrl);
   const frameAge = frame?.kind === "image" ? Math.max(0, now - Date.parse(frame.at)) : null;
   const stale = typeof frameAge === "number" && frameAge > 5_000;
 
@@ -131,7 +151,11 @@ export function BrowserViewport({ task, taskId, running }: BrowserViewportProps)
               {stale ? "Frame stale" : "Live frame"} · {formatDuration(frameAge)}
             </Badge>
           ) : null}
-          {!hasImage && !isDemo ? <Badge tone="idle">No stream</Badge> : null}
+          {!hasImage && !isDemo ? (
+            <Badge tone={awaitingFirstFrame ? "idle" : "warning"}>
+              {awaitingFirstFrame ? "Starting browser" : "No stream"}
+            </Badge>
+          ) : null}
           {isDemo ? <Badge tone="warning">Simulated</Badge> : null}
         </div>
       </div>
@@ -153,7 +177,7 @@ export function BrowserViewport({ task, taskId, running }: BrowserViewportProps)
           // A plain <img> keeps this dependency-free and works for both MJPEG
           // and polled-JPEG transports.
           // eslint-disable-next-line @next/next/no-img-element
-          <img className={styles.frame} src={frame.src} alt={`Current browser view${task?.currentTitle ? `: ${task.currentTitle}` : ""}`} onError={handleImageError} />
+          <img className={styles.frame} src={frame.src} alt={`Current browser view${task?.currentTitle ? `: ${task.currentTitle}` : ""}`} onLoad={handleImageLoad} onError={handleImageError} />
         ) : null}
 
         {!hasImage ? (
@@ -174,10 +198,13 @@ export function BrowserViewport({ task, taskId, running }: BrowserViewportProps)
                 <span className={styles.placeholderIcon}>
                   <MousePointerIcon size={22} />
                 </span>
-                <p className={styles.placeholderTitle}>No live browser stream</p>
+                <p className={styles.placeholderTitle}>
+                  {awaitingFirstFrame ? "Waiting for the first frame" : "No live browser stream"}
+                </p>
                 <p className={styles.placeholderBody}>
-                  This backend does not expose a frame feed yet. The agent still reports each page it opens below, so
-                  you can follow its progress without the visual.
+                  {awaitingFirstFrame
+                    ? "This task is queued behind another one, or the agent has not opened a page yet. The browser view appears the moment the first screenshot is captured."
+                    : "This backend does not expose a frame feed yet. The agent still reports each page it opens below, so you can follow its progress without the visual."}
                 </p>
               </>
             )}

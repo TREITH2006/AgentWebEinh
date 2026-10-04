@@ -23,6 +23,7 @@ import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+from ..adapters.base import AdapterError
 from ..config import Settings
 from ..database.database import Database
 from ..database.repositories import EventRepository, TaskRepository
@@ -362,6 +363,17 @@ class TaskManager:
                 f"The task exceeded the {self._settings.task_timeout_seconds}s time limit.",
                 retryable=True,
             )
+        except AdapterError as exc:
+            # An AdapterError exists to be explained: it carries the code, the
+            # reason and whether a retry could work. Flattening it into
+            # "internal_error" threw that away, so a browser that could not be
+            # acquired and an LLM that timed out both reached the user as
+            # "The run stopped unexpectedly".
+            logger.warning(
+                "run_adapter_failed task_id=%s code=%s retryable=%s error=%s",
+                task_id, exc.code, exc.retryable, exc,
+            )
+            await context.fail(exc.code, str(exc), retryable=exc.retryable)
         except Exception as exc:
             logger.exception("run_failed task_id=%s", task_id)
             await context.fail(

@@ -60,7 +60,7 @@ _APP_VERSION = "1.0.0"
 class _IntegrationSnapshot:
     """The integration probe outcome, cached between ``/api/status`` calls."""
 
-    __slots__ = ("ollama", "openclaw", "browser", "tinyfish", "expires_at")
+    __slots__ = ("browser", "expires_at", "ollama", "openclaw", "tinyfish")
 
     def __init__(
         self,
@@ -91,6 +91,7 @@ class HealthService:
         browser: BrowserManager,
         tinyfish: Any,
         frames: Any,
+        extension_bridge: Any = None,
     ) -> None:
         self._settings = settings
         self._database = database
@@ -100,6 +101,7 @@ class HealthService:
         self._browser = browser
         self._tinyfish = tinyfish
         self._frames = frames
+        self._extension_bridge = extension_bridge
         self._started_monotonic = time.monotonic()
         self._cache: _IntegrationSnapshot | None = None
         self._probe_lock = asyncio.Lock()
@@ -134,6 +136,10 @@ class HealthService:
             )
             if health.state == "down":
                 notes.append(f"{health.name}: {health.detail}")
+
+        extension_component = self._extension_component()
+        if extension_component is not None:
+            components[extension_component[0]] = extension_component[1]
 
         database_ok = database_component.state == "up"
         workers_ok = components["task_manager"].state == "up"
@@ -287,6 +293,18 @@ class HealthService:
 
         adapter = BrowserAdapter(self._settings, self._browser, self._ollama)
         return adapter.health()
+
+    def _extension_component(self) -> tuple[str, ComponentStatusDto] | None:
+        """Report the extension bridge without letting it affect the overall status."""
+        bridge = self._extension_bridge
+        if bridge is None or not self._settings.browser_extension_enabled:
+            return None
+        health = bridge.health()
+        component = ComponentStatusDto(
+            state=health.state,
+            detail=health.detail,
+        )
+        return health.name, component
 
 
 # ------------------------------------------------------------------- mapping --

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>AgentWebEinh</title>
+    <link rel="stylesheet" href="./popup.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1 class="title">AgentWebEinh</h1>
+      <p class="subtitle">Paired Browser Engine</p>
+      <p class="phase">Phase 2C</p>
+      <p id="status" class="status">Checking…</p>
+    </main>
+
+    <section class="panel">
+      <div class="field">
+        <label for="backend-url">Backend WebSocket URL</label>
+        <input id="backend-url" type="text" spellcheck="false" autocomplete="off" placeholder="ws://127.0.0.1:8001/api/browser/ws" />
+      </div>
+      <div class="field">
+        <label for="pairing-code">Pairing code (8 characters)</label>
+        <input id="pairing-code" type="text" spellcheck="false" autocomplete="off" maxlength="8" placeholder="e.g. 3F9A21D0" />
+      </div>
+      <div class="actions">
+        <button id="disconnect" type="button" disabled>Disconnect</button>
+        <button id="pair" type="button" class="primary">Pair browser</button>
+      </div>
+      <p id="meta" class="meta"></p>
+      <p id="error-line" class="error-line"></p>
+    </section>
+
+    <footer class="footer">
+      <span id="link-status">checking background…</span>
+    </footer>
+    <script type="module" src="./popup.ts"></script>
+  </body>
+</html>

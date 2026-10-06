@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
+from .browser_ws import router as browser_ws_router
 from .events import router as events_router
 from .frames import router as frames_router
 from .health import router as health_router
@@ -23,10 +24,12 @@ all_routers: tuple[APIRouter, ...] = (
     frames_router,
     stats_router,
     websocket_router,
+    browser_ws_router,
 )
 
 __all__ = [
     "all_routers",
+    "browser_ws_router",
     "events_router",
     "frames_router",
     "health_router",

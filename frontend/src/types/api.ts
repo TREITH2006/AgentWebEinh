@@ -207,6 +207,56 @@ export interface StatsBucketDto {
   success_rate?: number | null;
 }
 
+/* ------------------------------------------------------------ browser pair -- */
+
+/**
+ * `POST /api/browser/pairing` — one short-lived, single-use code for the Chrome
+ * extension popup. `backend/app/schemas/browser.py::PairingResponse`.
+ */
+export interface PairingResponse {
+  code: string;
+  expiresAt: string;
+  ttlSeconds: number;
+  websocketEndpoint: string;
+  websocketUrls: WebSocketUrlDto[];
+}
+
+/**
+ * One address the extension popup can be pointed at. The popup takes a full
+ * `ws(s)://` URL, so the backend hands over the two that actually work instead
+ * of a bare path.
+ */
+export interface WebSocketUrlDto {
+  label: string;
+  url: string;
+  note: string;
+}
+
+/**
+ * One connected browser extension. `busy` means a task currently holds it, so
+ * the page can say "in use by a task" instead of pretending it is available.
+ */
+export interface BrowserPeerDto {
+  browserId: string;
+  name: string;
+  connectedAt: string;
+  busy: boolean;
+}
+
+/**
+ * `GET /api/browser/status` — state of the extension bridge.
+ * `agent_mode` is true only when the backend runs tasks through the paired
+ * browser instead of its in-process Playwright engine.
+ */
+export interface BrowserStatusResponse {
+  enabled: boolean;
+  agentMode: boolean;
+  pairing: boolean;
+  paired: BrowserPeerDto[];
+  websocketEndpoint: string;
+  websocketUrls: WebSocketUrlDto[];
+}
+
 /* ------------------------------------------------------------------ frames -- */
 
 /**

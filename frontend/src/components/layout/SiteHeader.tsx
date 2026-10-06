@@ -28,6 +28,7 @@ const NAV: readonly NavItem[] = [
   { href: "/", label: "Dashboard" },
   { href: "/tasks", label: "Tasks" },
   { href: "/analytics", label: "Analytics" },
+  { href: "/connect", label: "Connect" },
   { href: "/about", label: "About" },
 ];
 

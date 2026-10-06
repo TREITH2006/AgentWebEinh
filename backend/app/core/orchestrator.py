@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING
 
 from ..adapters.base import AdapterError
 from ..adapters.browser_adapter import BrowserAdapter, BrowserRunResult
+from ..adapters.extension_adapter import ExtensionAdapter
 from ..adapters.ollama_adapter import OllamaAdapter
 from ..adapters.openclaw_adapter import OpenClawAdapter
 from ..browser.browser_events import BrowserEventEmitter
@@ -53,6 +54,7 @@ class Orchestrator:
         openclaw: OpenClawAdapter,
         frames: FrameManager,
         reports: ReportService,
+        extension: ExtensionAdapter | None = None,
     ) -> None:
         self._settings = settings
         self._browser = browser
@@ -60,6 +62,7 @@ class Orchestrator:
         self._openclaw = openclaw
         self._frames = frames
         self._reports = reports
+        self._extension = extension
 
     async def __call__(self, context: TaskContext) -> None:
         """Run the task. Raises only to signal a failure the manager should settle."""
@@ -122,6 +125,9 @@ class Orchestrator:
         emitter = BrowserEventEmitter(context, self._frames)
         result = BrowserRunResult()
 
+        if self._settings.browser_extension_enabled and self._settings.browser_extension_agent:
+            return await self._run_extension_engine(context, emitter, result)
+
         browser_health = self._browser.health()
         if not browser_health.ok and browser_health.state != "disabled":
             raise AdapterError(
@@ -148,6 +154,43 @@ class Orchestrator:
         # research as a supplement rather than replacing what was already verified.
         # Accumulate into ``outcome`` — a throwaway result here would be discarded
         # by the ``return`` below and the research would silently never be reported.
+        note: str | None = None
+        if self._settings.openclaw_enabled and not outcome.findings:
+            _, note = await self._consult_openclaw(context, emitter, outcome)
+        return outcome, note
+
+    async def _run_extension_engine(
+        self,
+        context: TaskContext,
+        emitter: BrowserEventEmitter,
+        result: BrowserRunResult,
+    ) -> tuple[BrowserRunResult, str | None]:
+        """Drive the paired Chrome extension as the primary browser engine.
+
+        The engine waits for a paired (and free) extension up to the configured
+        budget; a task submitted while no browser is paired therefore fails with
+        ``browser_extension_unavailable`` rather than hanging in ``running``.
+        """
+        if self._extension is None:
+            raise AdapterError(
+                "The extension engine is enabled but was not wired at startup.",
+                code="browser_extension_unavailable",
+                retryable=True,
+            )
+
+        await context.emit(
+            EventType.BROWSER_OPENED,
+            "Waiting for the paired browser extension.",
+            detail="Enter a pairing code in the AgentWebEinh extension popup.",
+        )
+        context.check_cancelled()
+        outcome = await self._extension.run(
+            context.task_id,
+            context.prompt,
+            emitter=emitter,
+            token=context.cancel,
+        )
+
         note: str | None = None
         if self._settings.openclaw_enabled and not outcome.findings:
             _, note = await self._consult_openclaw(context, emitter, outcome)

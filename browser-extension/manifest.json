@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "AgentWebEinh Browser Extension",
+  "version": "0.1.0",
+  "description": "AgentWebEinh browser extension. Phase 2C paired browser engine: loads, drives and observes real Chrome over a WebSocket bridge while retaining local validation of every command.",
+  "minimum_chrome_version": "110",
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "AgentWebEinh"
+  },
+  "background": {
+    "service_worker": "service-worker.js",
+    "type": "module"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": ["tabs", "scripting", "storage"],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*",
+    "ws://*/*",
+    "wss://*/*",
+    "<all_urls>"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content/content-script.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ]
+}

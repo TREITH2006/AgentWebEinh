@@ -129,3 +129,31 @@ export function AnimatedLink({
     </Link>
   );
 }
+
+/**
+ * A real `<a>` for URLs Next must not handle client-side — a file download, an
+ * external origin. Same visuals as the buttons, but the browser owns the
+ * navigation, so `download` and `target` behave as the platform intends.
+ */
+export interface AnimatedAnchorProps extends AnimatedBaseProps, Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "children" | "className"> {
+  href: string;
+}
+
+export function AnimatedAnchor({
+  label,
+  href,
+  variant = "primary",
+  size = "md",
+  icon,
+  fullWidth = false,
+  className,
+  ...rest
+}: AnimatedAnchorProps): React.JSX.Element {
+  return (
+    <a href={href} aria-label={rest["aria-label"] ?? label} className={classNames(variant, size, fullWidth, className)} {...rest}>
+      <span className={styles.backdrop} aria-hidden="true" />
+      <LayerStack label={label} icon={icon} lower={false} />
+      <LayerStack label={label} icon={icon} lower />
+    </a>
+  );
+}

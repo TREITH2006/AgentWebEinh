@@ -15,6 +15,7 @@ from ..adapters.browser_adapter import BrowserAdapter
 from ..adapters.ollama_adapter import OllamaAdapter
 from ..adapters.openclaw_adapter import OpenClawAdapter
 from ..adapters.tinyfish_adapter import TinyFishAdapter
+from ..browser.browser_bridge import BrowserBridge
 from ..browser.browser_manager import BrowserManager
 from ..browser.frame_manager import FrameManager
 from ..config import Settings
@@ -68,6 +69,10 @@ def get_browser_manager(request: Request) -> BrowserManager:
     return cast(BrowserManager, _state(request).browser)
 
 
+def get_browser_bridge(request: Request) -> BrowserBridge:
+    return cast(BrowserBridge, _state(request).browser_bridge)
+
+
 def get_task_repository(request: Request) -> TaskRepository:
     return cast(TaskRepository, _state(request).task_repository)
 
@@ -117,6 +122,7 @@ __all__ = [
     "TaskRepositoryDep",
     "TaskServiceDep",
     "get_browser_adapter",
+    "get_browser_bridge",
     "get_browser_manager",
     "get_database",
     "get_event_manager",

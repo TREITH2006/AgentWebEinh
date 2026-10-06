@@ -30,10 +30,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .adapters.browser_adapter import BrowserAdapter
+from .adapters.extension_adapter import ExtensionAdapter
 from .adapters.ollama_adapter import OllamaAdapter
 from .adapters.openclaw_adapter import OpenClawAdapter
 from .adapters.tinyfish_adapter import TinyFishAdapter
 from .api import all_routers
+from .browser.browser_bridge import BrowserBridge
 from .browser.browser_manager import BrowserManager
 from .browser.frame_manager import FrameManager
 from .config import Settings, get_settings
@@ -96,8 +98,10 @@ def build_component_graph(
     openclaw = OpenClawAdapter(settings)
     tinyfish = TinyFishAdapter(settings)
     frames = FrameManager(settings)
+    extension_bridge = BrowserBridge(settings)
     browser = BrowserManager(settings)
     browser_adapter = BrowserAdapter(settings, browser, ollama)
+    extension_adapter = ExtensionAdapter(settings, extension_bridge, ollama)
     reports = ReportService(settings, ollama)
 
     task_manager = TaskManager(
@@ -114,6 +118,7 @@ def build_component_graph(
             openclaw=openclaw,
             frames=frames,
             reports=reports,
+            extension=extension_adapter,
         ),
     )
 
@@ -127,6 +132,7 @@ def build_component_graph(
         browser=browser,
         tinyfish=tinyfish,
         frames=frames,
+        extension_bridge=extension_bridge,
     )
 
     app.state.settings = settings
@@ -142,6 +148,8 @@ def build_component_graph(
     app.state.frames = frames
     app.state.browser = browser
     app.state.browser_adapter = browser_adapter
+    app.state.browser_bridge = extension_bridge
+    app.state.extension_adapter = extension_adapter
     app.state.ollama = ollama
     app.state.openclaw = openclaw
     app.state.tinyfish = tinyfish

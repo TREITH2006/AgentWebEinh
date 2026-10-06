@@ -17,6 +17,7 @@ const GROUPS: readonly { title: string; links: readonly { href: string; label: s
       { href: "/", label: "Dashboard" },
       { href: "/tasks", label: "Task history" },
       { href: "/analytics", label: "Performance" },
+      { href: "/connect", label: "Connect a browser" },
     ],
   },
   {

@@ -1,0 +1,236 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--bw-s-6);
+  padding-bottom: var(--bw-s-11);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--bw-s-4);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--bw-s-4);
+  padding: var(--bw-s-5);
+}
+
+/* ---------------------------------------------------------------- gate (demo) -- */
+
+.gate {
+  display: flex;
+  gap: var(--bw-s-3);
+  align-items: flex-start;
+  color: var(--bw-amber);
+}
+
+.gateTitle {
+  font-size: var(--bw-fs-sm);
+  font-weight: 650;
+  color: var(--bw-text-soft);
+}
+
+.gateBody {
+  margin-top: 0.25rem;
+  max-width: 72ch;
+  font-size: var(--bw-fs-xs);
+  line-height: 1.6;
+  color: var(--bw-text-faint);
+}
+
+/* ------------------------------------------------------------ panel headers -- */
+
+.panelHead {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--bw-s-3);
+}
+
+.panelIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--bw-accent-line);
+  border-radius: var(--bw-r-sm);
+  background: var(--bw-accent-soft);
+  color: var(--bw-accent-strong);
+}
+
+.panelTitle {
+  font-size: var(--bw-fs-md);
+  font-weight: 650;
+  color: var(--bw-text-soft);
+}
+
+.panelBody {
+  margin-top: 0.2rem;
+  max-width: 76ch;
+  font-size: var(--bw-fs-xs);
+  line-height: 1.6;
+  color: var(--bw-text-faint);
+}
+
+.panelBody code,
+.codeMeta code,
+.peerMeta code,
+.urlValue code {
+  font-family: var(--bw-font-mono);
+  font-size: 0.9em;
+  color: var(--bw-chocolate);
+}
+
+.urlValue code {
+  font-size: 1em;
+}
+
+.actionRow {
+  display: flex;
+  align-items: center;
+  gap: var(--bw-s-3);
+  flex-wrap: wrap;
+}
+
+/* ------------------------------------------------------------------ code -- */
+
+.codeCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--bw-s-3);
+  padding: var(--bw-s-4);
+  border: 1px solid var(--bw-accent-line-strong);
+  border-radius: var(--bw-r-md);
+  background: linear-gradient(135deg, rgba(122, 113, 255, 0.08), rgba(255, 255, 255, 0.014));
+}
+
+.codeRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--bw-s-3);
+  flex-wrap: wrap;
+}
+
+.code {
+  font-family: var(--bw-font-mono);
+  font-size: clamp(1.6rem, 5vw, 2.6rem);
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--bw-gold);
+  line-height: 1.1;
+}
+
+.codeMeta {
+  font-size: var(--bw-fs-2xs);
+  color: var(--bw-text-faint);
+}
+
+/* ------------------------------------------------------------------ urls -- */
+
+.urlList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--bw-s-2);
+  list-style: none;
+}
+
+.urlRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--bw-s-3);
+  padding: var(--bw-s-3) var(--bw-s-4);
+  border: 1px solid var(--bw-line);
+  border-radius: var(--bw-r-sm);
+  background: rgba(255, 255, 255, 0.016);
+}
+
+.urlMain {
+  min-width: 0;
+}
+
+.urlLabel {
+  font-size: var(--bw-fs-sm);
+  font-weight: 650;
+  color: var(--bw-text-soft);
+}
+
+.urlValue {
+  margin-top: 0.15rem;
+  font-family: var(--bw-font-mono);
+  font-size: var(--bw-fs-2xs);
+  word-break: break-all;
+  color: var(--bw-chocolate);
+}
+
+.urlNote {
+  margin-top: 0.15rem;
+  font-size: var(--bw-fs-2xs);
+  color: var(--bw-text-faint);
+}
+
+/* ------------------------------------------------------------------ peers -- */
+
+.peerList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--bw-s-2);
+  list-style: none;
+}
+
+.peerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--bw-s-3);
+  padding: var(--bw-s-3) var(--bw-s-4);
+  border: 1px solid var(--bw-line);
+  border-radius: var(--bw-r-sm);
+  background: rgba(255, 255, 255, 0.016);
+}
+
+.peerMain {
+  min-width: 0;
+}
+
+.peerName {
+  font-size: var(--bw-fs-sm);
+  font-weight: 650;
+  color: var(--bw-text-soft);
+}
+
+.peerMeta {
+  margin-top: 0.2rem;
+  font-size: var(--bw-fs-2xs);
+  color: var(--bw-text-faint);
+}
+
+/* -------------------------------------------------------------- messaging -- */
+
+.muted {
+  font-size: var(--bw-fs-xs);
+  color: var(--bw-text-faint);
+}
+
+.successText {
+  font-size: var(--bw-fs-sm);
+  font-weight: 650;
+  color: var(--bw-gold);
+}
+
+.errorText {
+  font-size: var(--bw-fs-xs);
+  color: var(--bw-danger);
+}
+
+@media (max-width: 760px) {
+  .peerRow,
+  .urlRow {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

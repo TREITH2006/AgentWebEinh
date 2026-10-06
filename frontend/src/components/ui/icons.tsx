@@ -112,6 +112,16 @@ export function ExternalLinkIcon(props: IconProps): React.JSX.Element {
   );
 }
 
+export function DownloadIcon(props: IconProps): React.JSX.Element {
+  return (
+    <Base {...props}>
+      <path d="M12 4v10.5" />
+      <path d="m7.5 10.5 4.5 4.5 4.5-4.5" />
+      <path d="M5 19.5h14" />
+    </Base>
+  );
+}
+
 export function CopyIcon(props: IconProps): React.JSX.Element {
   return (
     <Base {...props}>

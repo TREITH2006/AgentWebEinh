@@ -159,7 +159,24 @@ class Settings(BaseSettings):
     )
     screenshots_dir: Path = DATA_DIR / "screenshots"
 
-    # ------------------------------------------------------------ TinyFish --
+    # ------------------------------------------------------- extension --
+    #: The paired Chrome extension (Phases 2C/2D). When ``browser_extension_agent``
+    #: is true the orchestrator drives the *user's real Chrome* through the
+    #: extension instead of the in-process Playwright browser.
+    browser_extension_enabled: bool = True
+    #: Use the paired extension as the browser engine for every run. On by
+    #: default because it *is* the product: tasks drive the user's real Chrome.
+    #: Set ``AWE_BROWSER_EXTENSION_AGENT=false`` to fall back to the in-process
+    #: Playwright engine (development only).
+    browser_extension_agent: bool = True
+    #: How long one browser command may await its result from the extension.
+    browser_extension_command_timeout_seconds: float = 120.0
+    #: How long a task waits for a paired (and free) browser before failing.
+    browser_extension_wait_seconds: int = 120
+    #: Lifetime of one pairing code; codes are single-use and memory-resident.
+    browser_extension_pairing_ttl_seconds: int = 600
+    #: Cap on interactive elements returned in one page observation.
+    browser_extension_max_elements: int = 60
     #: Optional research helper. Disabled by default: the core product must not
     #: depend on it, and enabling it shells out to the installed CLI.
     tinyfish_enabled: bool = False
@@ -244,6 +261,12 @@ class Settings(BaseSettings):
             raise ValueError("AWE_BROWSER_FRAME_INTERVAL_MS must be >= 200")
         if not 1 <= self.browser_frame_quality <= 100:
             raise ValueError("AWE_BROWSER_FRAME_QUALITY must be within 1..100")
+        if self.browser_extension_command_timeout_seconds < 0.3:
+            raise ValueError("AWE_BROWSER_EXTENSION_COMMAND_TIMEOUT_SECONDS must be >= 0.3")
+        if self.browser_extension_wait_seconds < 1:
+            raise ValueError("AWE_BROWSER_EXTENSION_WAIT_SECONDS must be >= 1")
+        if self.browser_extension_pairing_ttl_seconds < 30:
+            raise ValueError("AWE_BROWSER_EXTENSION_PAIRING_TTL_SECONDS must be >= 30")
         return self
 
     # --------------------------------------------------------- derived URLs --

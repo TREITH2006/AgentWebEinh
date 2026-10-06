@@ -49,6 +49,15 @@ export const API_ENDPOINTS = {
   taskFrameSnapshot: (taskId: string) => `${PREFIX}/api/tasks/${encodeURIComponent(taskId)}/frame.jpg`,
 
   stats: `${PREFIX}/api/stats`,
+
+  /**
+   * Browser-extension pairing. `POST` mints a short-lived single-use code; the
+   * user types it into the extension popup to connect their real Chrome.
+   */
+  browserPairing: `${PREFIX}/api/browser/pairing`,
+
+  /** Currently paired browser extensions + whether the engine uses them. */
+  browserStatus: `${PREFIX}/api/browser/status`,
 } as const;
 
 export type ApiEndpointName = keyof typeof API_ENDPOINTS;
